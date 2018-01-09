@@ -6,6 +6,8 @@ Created on Tue Dec 12 13:54:07 2017
 @author: lessig
 """
 
+# implement cornell box
+
 class Scene :
     
     def __init__(self) :
