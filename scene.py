@@ -15,6 +15,7 @@ class Scene :
         self.lights = []
 
 
+    #todo implement octree
     def intersectLights(self, ray):
         return self.intersect(ray, self.lights)
 
