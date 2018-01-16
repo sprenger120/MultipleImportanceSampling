@@ -30,7 +30,7 @@ def createScene() :
     )
 
     scene.lights.append(
-        SphereLight(np.array([3.0, 0, 3.0]), 3.0, #position, radius
+        SphereLight(np.array([5.0, 0, 3.0]), 3.0, #position, radius
                     [1, 1, 1], 1000) # light color, light intensity
     )
     
