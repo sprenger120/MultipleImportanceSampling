@@ -11,7 +11,7 @@ class MISIntegrator(Integrator):
 
 
 
-            return [1,1,1]
+            return ray.firstHitShape
 
 
         return [0,0,0] # no intersection so we stare into the deep void
