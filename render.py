@@ -6,26 +6,33 @@ Created on Tue Dec 12 13:47:48 2017
 @author: lessig
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 import util as util
-
-
-from ray import Ray
+from Integrators.MISIntegrator import MISIntegrator
+from Shapes.sphere import Sphere
 from camera import Camera
-from sphere import Sphere
 from scene import Scene
-from basic_integrator import BasicIntegrator
-from MISIntegrator import MISIntegrator
+from Shapes.Lights.Lights import SphereLight
 
 
 def createScene() :
     
     scene = Scene()
-    
-    sphere = Sphere( np.array([0.0, 0.0, 3.0]), 1.0, [0,1,0])
-    scene.objects.append( sphere)
+
+    scene.objects.append(
+        Sphere(np.array([0.0, 0.0, 3.0]), 1.0, [0, 1, 0])
+    )
+
+    scene.objects.append(
+        Sphere(np.array([0.0, -1.0, 3.0]), 1.0, [1, 0, 0])
+    )
+
+    scene.lights.append(
+        SphereLight(np.array([3.0, 0, 3.0]), 3.0, #position, radius
+                    [1, 1, 1], 1000) # light color, light intensity
+    )
     
     return scene
 

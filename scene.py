@@ -12,13 +12,20 @@ class Scene :
     
     def __init__(self) :
         self.objects = []
-        
-    def intersect( self, ray) :
-        
+        self.lights = []
+
+
+    def intersectLights(self, ray):
+        return self.intersect(ray, self.lights)
+
+    def intersectObjects(self, ray):
+        return self.intersect(ray, self.objects)
+
+    def intersect( self, ray, list) :
         res = False
-        for obj in self.objects :
-            res |= obj.intersect( ray)
-            
+        for obj in list :
+            if obj.intersect( ray) :
+                res |= True
+                ray.firstHitShape = obj
+
         return res
-            
-        
