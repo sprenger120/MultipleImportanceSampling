@@ -8,16 +8,30 @@ Created on Tue Dec 12 13:26:46 2017
 
 import numpy as np
 import ray
+"""
+ Coordinate system
+ 
+           +Z
+   +X    .
+   ^    . 
+   .   . 
+   .  . 
+   . . 
+   ..........> +Y
+
+
+"""
+
 
 class Camera :
 
     def __init__( self, res_x = 512, res_y = 512):
-        self.pos = np.zeros( 3)
+        self.pos = [0, 0, -10]
         self.viewdir = np.array( [0.0, 1.0, 0.0])
         self.updir = np.array( [0.0, 0.0, 1.0])
         self.fov = (30.0 * np.pi) / 180.0
         self.flength = 1.0
-        self.image = np.zeros( [res_x, res_y])
+        self.image = np.zeros( (res_x, res_y, 3), dtype=np.float)
     
     def generateRay( self, pix_x, pix_y) :
         

@@ -10,6 +10,7 @@ import numpy as np
 
 class Ray :
 
+# when a ray hits an object, the intersecion method will shorten the ray by altering the t parameter
     def __init__(self, oa = np.array([0,0,0]), da = np.array([1,0,0])) :
         self.o = oa
         self.d = da

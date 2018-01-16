@@ -12,9 +12,9 @@ from shape import Shape
 
 class Sphere( Shape) :
     
-    def __init__(self, pos, r) :
+    def __init__(self, pos, r, color) :
     
-        super().__init__()
+        super().__init__(color)
         
         self.pos = pos
         self.r = r
