@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-from shape import Shape
+from Shapes.shape import Shape
 
 # vertices are always given in CW order
 

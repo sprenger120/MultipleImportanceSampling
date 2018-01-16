@@ -7,7 +7,8 @@ Created on Tue Dec 12 13:58:48 2017
 """
 
 import numpy as np
-from shape import Shape
+
+from Shapes.shape import Shape
 
 
 class Sphere( Shape) :
