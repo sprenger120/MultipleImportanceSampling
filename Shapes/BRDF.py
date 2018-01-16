@@ -1,1 +1,0 @@
-# todo insert brdfs for different materials
