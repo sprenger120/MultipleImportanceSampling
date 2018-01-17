@@ -5,10 +5,10 @@ import util as util
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 50
+    sampleCount = 100
 
     def ell(self, scene, ray):
-        if (scene.intersectObjects(ray)):
+        if scene.intersectLights(ray) or scene.intersectObjects(ray) :
             # intersection point where object was hit
             intersPoint = ray.o + ray.d*ray.t
 
@@ -77,7 +77,8 @@ class MISIntegrator(Integrator):
             lightSenseRay = Ray(intersPoint)
 
             # generate random direction
-            randomDirection = np.random.random(3)
+            # *2 -1 to generate negatives too
+            randomDirection = np.random.random(3) * 2 -1
             lightSenseRay.d = randomDirection
 
             # send ray on its way
@@ -99,7 +100,7 @@ class MISIntegrator(Integrator):
         combinedLightColor = np.zeros(3)
 
         # avoid / 0 when no light was aquired
-        if aquiredLightSum > 0. :
+        if aquiredLightSum > 0 :
             # calculate pixel color
             # first calculate the color of the light hitting the shape
             # light that is more intense has more weight in the resulting color

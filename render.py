@@ -23,18 +23,26 @@ def createScene() :
     scene = Scene()
 
     scene.objects.append(
-        Sphere(np.array([0.0, 0.0, 3.0]), 1.0, [0, 1, 0])
+        Sphere(np.array([0.0, 0.0, 3.0]), 1.0, [1, 1, 1])
     )
 
     scene.objects.append(
-        Sphere(np.array([0.0, -1.0, 3.0]), 1.0, [1, 0, 0])
+        Sphere(np.array([0.0, -1.0, 3.0]), 1.0, [1, 1, 1])
     )
 
     scene.lights.append(
-        SphereLight(np.array([5.0, 0, 3.0]), 3.0, #position, radius
-                    [1, 1, 1], 2) # light color, light intensity
+        SphereLight(np.array([2.0, 0, 3.0]), 0.1, #position, radius
+                    [0, 0, 1], 5) # light color, light intensity
     )
-    
+    scene.lights.append(
+        SphereLight(np.array([-2.0, 0, 3]), 0.1, #position, radius
+                    [1, 0, 0], 5) # light color, light intensity
+    )
+    scene.lights.append(
+        SphereLight(np.array([3.0, 0, 3]), 0.1,  # position, radius
+                    [0, 1, 0], 10)  # light color, light intensity
+    )
+
     return scene
 
 
