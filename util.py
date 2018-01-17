@@ -10,8 +10,7 @@ def clipColor(color) :
 
 # has tests
 def isColor(color) :
-    return isinstance(color, list) \
-           and len(color) == 3  \
+    return len(color) == 3  \
            and isinstance(color[0], numbers.Number) \
            and isinstance(color[1], numbers.Number) \
            and isinstance(color[2], numbers.Number)
