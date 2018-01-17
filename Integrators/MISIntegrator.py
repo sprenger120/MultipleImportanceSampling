@@ -78,6 +78,8 @@ class MISIntegrator(Integrator):
 
             # generate random direction
             # *2 -1 to generate negatives too
+            #todo fix, negative values should only come from theta angle
+            #todo generate theta and phi instead of three coordinates
             randomDirection = np.random.random(3) * 2 -1
             lightSenseRay.d = randomDirection
 
