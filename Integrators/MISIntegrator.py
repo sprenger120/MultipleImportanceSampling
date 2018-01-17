@@ -1,10 +1,11 @@
 from Integrators.integrator import Integrator
 from ray import Ray
 import numpy as np
+import util as util
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 100
+    sampleCount = 50
 
     def ell(self, scene, ray):
         if (scene.intersectObjects(ray)):
@@ -41,9 +42,9 @@ class MISIntegrator(Integrator):
                     
             the mixed lights color is mixed with the objects color and then multiplied by the combined intensity
             """
-
-
-            return ray.firstHitShape.color
+            val = self.RandomStupidSampling(intersPoint, ray, scene)
+            return val
+            # return ray.firstHitShape.color
 
         return [0,0,0] # no intersection so we stare into the deep void
 
@@ -58,14 +59,62 @@ class MISIntegrator(Integrator):
         return 0
 
     def RandomStupidSampling(self, intersPoint, ray, scene):
-        #todo
+        # all the light hitting our intersection point
+        # this value is later normalized with the sample count
+        # before that its just the sum of incoming light
+        aquiredLightSum = 0
+
+        # Array of light intensity value that goes into the integrator and the color
+        # of the light [ (lightIntensity,[R,G,B]), ... ]
+        aquiredLightsIntensity = np.zeros(MISIntegrator.sampleCount)
+        aquiredLightsColor = np.zeros((MISIntegrator.sampleCount, 3))
+
+        # filled out elements in the array
+        aquiredLightsCount = 0
+
         # integrate over sphere using monte carlo
         for sampleNr in range(MISIntegrator.sampleCount):
             lightSenseRay = Ray(intersPoint)
 
             # generate random direction
-            randomDirection = np.rand(3)
-        return 0
+            randomDirection = np.random.random(3)
+            lightSenseRay.d = randomDirection
+
+            # send ray on its way
+            if scene.intersectLights(lightSenseRay) :
+                # weigh light intensity by various factors
+                aquiredLight = lightSenseRay.firstHitShape.lightIntensity
+                # lambert light model (cos weighting)
+
+                # todo  this line is incorrect;   we need angle between intersection normal and
+                # ray being shot out
+                aquiredLight *= np.cos(randomDirection[1])
+
+                aquiredLightSum += aquiredLight
+
+                aquiredLightsIntensity[aquiredLightsCount] = aquiredLight
+                aquiredLightsColor[aquiredLightsCount] = lightSenseRay.firstHitShape.lightColor
+                aquiredLightsCount += 1
+
+        combinedLightColor = np.zeros(3)
+
+        # avoid / 0 when no light was aquired
+        if aquiredLightSum > 0. :
+            # calculate pixel color
+            # first calculate the color of the light hitting the shape
+            # light that is more intense has more weight in the resulting color
+
+            for n in range(aquiredLightsCount) :
+                combinedLightColor += aquiredLightsColor[n] * (aquiredLightsIntensity[n] / aquiredLightSum)
+
+            # should not be necessary
+            combinedLightColor = util.clipColor(combinedLightColor)
+
+            # normalize light
+            aquiredLightSum /= MISIntegrator.sampleCount
+
+        # combine light color and object color + make it as bright as light that falls in
+        return ray.firstHitShape.color * combinedLightColor * aquiredLightSum
 
     """
     Mixes objects color with light color
