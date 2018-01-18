@@ -34,7 +34,7 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 100
+    sampleCount = 500
 
     def ell(self, scene, ray):
         if scene.intersectLights(ray) or scene.intersectObjects(ray) :
