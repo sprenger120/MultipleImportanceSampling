@@ -3,6 +3,35 @@ from ray import Ray
 import numpy as np
 import util as util
 
+"""
+Angles on the sphere
+
+
+   seen from above:
+      .........
+     .       /  .
+   .        /     .
+   .       /  phi  .
+   .      x _______. 0°
+   .              .
+   . .        . .
+       .......
+ 0 - 180°;  -1 - 1
+
+
+ seen from the side:
+ 
+  0 - 90°;   0 - 1
+                  theta
+         ......0°.......
+       .       |   /   .
+     .         |  /      .
+    .          | /        .
+   .___________x__________.
+"""
+
+
+
 class MISIntegrator(Integrator):
 
     sampleCount = 100
@@ -76,11 +105,36 @@ class MISIntegrator(Integrator):
         for sampleNr in range(MISIntegrator.sampleCount):
             lightSenseRay = Ray(intersPoint)
 
-            # generate random direction
+            # generate direction of light sense ray shot away from the hemisphere
+            # generate theta and phi and map onto the sphere
+            # direction is vector from intersection point to point on hemisphere
+
+            theta = np.random.random(1)
+            phi = np.random.random(1) * 2 - 1  #*2 -1 for negative numbers
+
+            """
+            N... Normal on intersection point,  normalized
+            
+            
+            
+            ^ ------->
+            |        |
+            |        |
+            |        |
+            |        ^
+            N
+            
+            """
+
+
+
+
+
+
             # *2 -1 to generate negatives too
             #todo fix, negative values should only come from theta angle
             #todo generate theta and phi instead of three coordinates
-            randomDirection = np.random.random(3) * 2 -1
+            randomDirection = np.random.random(3) * 2 - 1
             lightSenseRay.d = randomDirection
 
             # send ray on its way
@@ -120,25 +174,38 @@ class MISIntegrator(Integrator):
         return ray.firstHitShape.color * combinedLightColor * aquiredLightSum
 
     """
-    Mixes objects color with light color
+    omega: Array with angles (theta, phi) (in radiant)
+    normal: Normal of origin of sphere, resulting vector will be adjusted for given normal
+            leave default for upright normal 
+            coordinate system orientation cam be seen in camera.py
+            has to be normalized
+    Returns vector from coordinate origin to point on unit sphere where both angles would put it
     """
-    def mixColor(self, objectColor, lightColor):
-        #todo implement
-        """
-        //Mixes the color of an object with the color of the light shining at it
-        //expects all colors to be between 0 and 1
-        //Assuming that all light only consists of red, green, blue
-        //Then a green object is one that absorbs all red and green light and reflects red light
-        //Therefore when a green object is illuminated with red light it will be black because it
-        //absorbs all red light;  same goes for blue light
-        //So to realistically mix object and light color we define that  1-object color is the
-        //absorption factor of the incoming light
-        //So to have the above mentioned effect we calculate
-        // lightColor -  (1-objectColor) to incorporate the absorption factor
-        Vec3d PhongMaterial::mixColor(const Vec3d &baseColor, const Vec3d &lightColor) {
-            return Vec3d(baseColor.x() - 1 + lightColor.x(),
-                         baseColor.y() - 1 + lightColor.y(),
-                         baseColor.z() - 1 + lightColor.z());
-        }
-        """
-        return
+    def s2tor3(omega, normal = np.array([1, 0, 0])):
+
+        rotX = 0
+        rotY = 0
+        rotZ = 0
+        rotationMatrix = np.array([[],
+                                   [],
+                                   []])
+
+
+
+        r3 = np.zeros(3)
+        r3[0] = np.sin(omega[0]) * np.cos(omega[1])
+        r3[1] = np.sin(omega[0]) * np.sin(omega[1])
+        r3[2] = np.cos(omega[0])
+        return r3
+
+    def rotation_matrix_numpy(axis, theta):
+        # https://stackoverflow.com/questions/6802577/python-rotation-of-3d-vector
+        mat = np.eye(3, 3)
+        axis = axis / np.sqrt(np.dot(axis, axis))
+        a = np.cos(theta / 2.)
+        b, c, d = -axis * np.sin(theta / 2.)
+
+        return np.array([[a * a + b * b - c * c - d * d, 2 * (b * c - a * d), 2 * (b * d + a * c)],
+                         [2 * (b * c + a * d), a * a + c * c - b * b - d * d, 2 * (c * d - a * b)],
+                         [2 * (b * d - a * c), 2 * (c * d + a * b), a * a + d * d - b * b - c * c]])
+
