@@ -34,7 +34,8 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 500
+    sampleCount = 100
+    defaultHemisphereNormal = [1, 0, 0]
 
     def ell(self, scene, ray):
         if scene.intersectLights(ray) or scene.intersectObjects(ray) :
@@ -42,36 +43,9 @@ class MISIntegrator(Integrator):
             intersPoint = ray.o + ray.d*ray.t
 
             # only for spheres
-            normal = np.linalg.norm(intersPoint)
+            intersectionNormal = intersPoint / np.linalg.norm(intersPoint)
 
-
-            #todo mix color
-            #todo incorporate light intensity to color mixing
-            #todo precalculate some more values (normal on intersection point)
-            #todo weight sampling methods against each other
-
-            """
-            mixing light:
-            
-            every object has a material that defines  
-            reflectance, shininess and color
-            
-            when light ray falls onto object the angle between intersection
-            normal an light will be taken into account by lamberts cosine law
-            for specular spots phong can be used 
-            
-            
-            light colors of multiple lights are added and combined by their intensity 
-            --> same weighing strategy as used in MIS
-            
-            combined light intensity is to be calculated seen from the intersection point of the sphere
-            light intensity drops off with 1/sqrt(distance to object) and then simply added
-            
-        
-                    
-            the mixed lights color is mixed with the objects color and then multiplied by the combined intensity
-            """
-            val = self.RandomStupidSampling(intersPoint, ray, scene)
+            val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
             return val
             # return ray.firstHitShape.color
 
@@ -79,15 +53,15 @@ class MISIntegrator(Integrator):
 
 
 
-    def BRDFSampling(self, intersectionPoint, ray, scene) :
+    def BRDFSampling(self, intersectionPoint, ray, scene, intersectionNormal) :
         #todo
         return 0
 
-    def LightSoureAreaSampling(self, intersectionPoint, ray, scene):
+    def LightSoureAreaSampling(self, intersectionPoint, ray, scene, intersectionNormal):
         #todo
         return 0
 
-    def RandomStupidSampling(self, intersPoint, ray, scene):
+    def RandomStupidSampling(self, intersPoint, ray, scene, intersectionNormal):
         # all the light hitting our intersection point
         # this value is later normalized with the sample count
         # before that its just the sum of incoming light
@@ -101,41 +75,35 @@ class MISIntegrator(Integrator):
         # filled out elements in the array
         aquiredLightsCount = 0
 
+        # Calculate matrix that rotates from the default hemisphere normal
+        # to the intersection normal
+        sampleRoatationMatrix = self.rotation_matrix_numpy(np.cross(intersectionNormal, MISIntegrator.defaultHemisphereNormal),
+                                            np.dot(MISIntegrator.defaultHemisphereNormal, intersectionNormal))
+
         # integrate over sphere using monte carlo
         for sampleNr in range(MISIntegrator.sampleCount):
             lightSenseRay = Ray(intersPoint)
 
+            #
+            # sample generation
+            #
             # generate direction of light sense ray shot away from the hemisphere
-            # generate theta and phi and map onto the sphere
-            # direction is vector from intersection point to point on hemisphere
 
-            theta = np.random.random(1)
-            phi = np.random.random(1) * 2 - 1  #*2 -1 for negative numbers
+            # generate theta and phi
+            theta = (np.random.random() * 2 - 1) * (np.pi / 2)
+            phi = (np.random.random() * 2 - 1) * np.pi
 
-            """
-            N... Normal on intersection point,  normalized
-            
-            
-            
-            ^ ------->
-            |        |
-            |        |
-            |        |
-            |        ^
-            N
-            
-            """
+            # map onto sphere
+            # we get a point on the unit sphere that is oriented along the positive x axis
+            lightSenseRaySecondPoint = self.twoAnglesTo3DPoint(theta, phi)
 
+            # but because we need a sphere that is oriented along the intersection normal
+            # we rotate the point with the precalculated sample rotation matrix
+            lightSenseRaySecondPoint = np.dot(sampleRoatationMatrix, lightSenseRaySecondPoint)
 
-
-
-
-
-            # *2 -1 to generate negatives too
-            #todo fix, negative values should only come from theta angle
-            #todo generate theta and phi instead of three coordinates
-            randomDirection = np.random.random(3) * 2 - 1
-            lightSenseRay.d = randomDirection
+            # to get direction for ray we aquire the vector from the intersection point to our adjusted point on
+            # the sphere
+            lightSenseRay.d =  intersPoint - lightSenseRaySecondPoint
 
             # send ray on its way
             if scene.intersectLights(lightSenseRay) :
@@ -145,7 +113,7 @@ class MISIntegrator(Integrator):
 
                 # todo  this line is incorrect;   we need angle between intersection normal and
                 # ray being shot out
-                aquiredLight *= np.cos(randomDirection[1])
+                # aquiredLight *= np.cos(randomDirection[1])
 
                 aquiredLightSum += aquiredLight
 
@@ -157,7 +125,10 @@ class MISIntegrator(Integrator):
 
         # avoid / 0 when no light was aquired
         if aquiredLightSum > 0 :
+            #
             # calculate pixel color
+            #
+
             # first calculate the color of the light hitting the shape
             # light that is more intense has more weight in the resulting color
 
@@ -174,31 +145,20 @@ class MISIntegrator(Integrator):
         return ray.firstHitShape.color * combinedLightColor * aquiredLightSum
 
     """
-    omega: Array with angles (theta, phi) (in radiant)
-    normal: Normal of origin of sphere, resulting vector will be adjusted for given normal
-            leave default for upright normal 
-            coordinate system orientation cam be seen in camera.py
-            has to be normalized
+    theta, phi angles in radiant
     Returns vector from coordinate origin to point on unit sphere where both angles would put it
     """
-    def s2tor3(omega, normal = np.array([1, 0, 0])):
-
-        rotX = 0
-        rotY = 0
-        rotZ = 0
-        rotationMatrix = np.array([[],
-                                   [],
-                                   []])
-
-
-
+    def twoAnglesTo3DPoint(self, theta, phi):
         r3 = np.zeros(3)
-        r3[0] = np.sin(omega[0]) * np.cos(omega[1])
-        r3[1] = np.sin(omega[0]) * np.sin(omega[1])
-        r3[2] = np.cos(omega[0])
+        r3[0] = np.sin(theta) * np.cos(phi)
+        r3[1] = np.sin(theta) * np.sin(phi)
+        r3[2] = np.cos(theta)
         return r3
 
-    def rotation_matrix_numpy(axis, theta):
+    """
+    Renerates rotation matrix from given axis and angle
+    """
+    def rotation_matrix_numpy(self, axis, theta):
         # https://stackoverflow.com/questions/6802577/python-rotation-of-3d-vector
         mat = np.eye(3, 3)
         axis = axis / np.sqrt(np.dot(axis, axis))
