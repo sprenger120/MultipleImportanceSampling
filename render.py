@@ -12,9 +12,10 @@ import numpy as np
 import util as util
 from Integrators.MISIntegrator import MISIntegrator
 from Shapes.sphere import Sphere
+from Shapes.Triangle import Triangle
+from Shapes.Lights.Lights import SphereLight
 from camera import Camera
 from scene import Scene
-from Shapes.Lights.Lights import SphereLight
 from sys import stdout
 
 
@@ -27,12 +28,16 @@ def createScene() :
     )
 
     scene.objects.append(
-        Sphere(np.array([0.0, -1.0, 3.0]), 2.0, [1, 1, 1])
+        Sphere(np.array([0.0, -1.0, 3.0]), 2.0, [0, 0, 1])
+    )
+
+    scene.objects.append(
+        Triangle(np.array([0.0,0.0,4.0]),np.array([3.0,0.0,3.0]),np.array([3.0,3.0,4.0]), [1,0,0])
     )
 
     scene.lights.append(
         SphereLight(np.array([2.0, 0, 3.0]), 0.1, #position, radius
-                    [1, 1, 1], 1) # light color, light intensity
+                    [1, 1, 1], 10) # light color, light intensity
     )
    # scene.lights.append(
    #     SphereLight(np.array([-2.0, 0, 3]), 0.1, #position, radius

@@ -45,6 +45,11 @@ class MISIntegrator(Integrator):
             # only for spheres
             intersectionNormal = intersPoint / np.linalg.norm(intersPoint)
 
+            if (ray.firstHitShape.tri==True) :
+                v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
+                v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
+                intersectionNormal = np.cross(v1v2, v1v3)
+
             val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
             return val
             # return ray.firstHitShape.color

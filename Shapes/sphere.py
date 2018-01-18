@@ -19,6 +19,7 @@ class Sphere( Shape) :
         
         self.pos = pos
         self.r = r
+        self.tri = False    #no triangle
         
     def intersect(self, ray):
         

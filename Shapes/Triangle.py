@@ -1,32 +1,75 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import numpy as np
 from Shapes.shape import Shape
 
 # vertices are always given in CW order
 
 
 class Triangle(Shape):
-    def __init__(self,
-                 x1, y1, z1,
-                 x2,y2, z2,
-                 x3,y3, z3, color):
+    def __init__(self,v1,v2,v3, color):
 
         super().__init__(color)
-        # todo better notation for byzentian coordinates / intersection
-        self.x1 = x1
-        self.x2 = x2
-        self.x3 = x3
-        self.y1 = y1
-        self.y2 = y2
-        self.y3 = y3
-        self.z1 = z1
-        self.z2 = z2
-        self.z3 = z3
-
+        self.v1 = v1
+        self.v2 = v2
+        self.v3 = v3
+        self.tri=True
 
     def intersect(self, ray):
-        #todo implement
+
+        #compute planes`s normal
+
+        v1v2=self.v2-self.v1
+        v1v3=self.v3-self.v1
+        n=np.cross(v1v2,v1v3)
+
+        #Step 1: finding the intersection point with triangle plane
+
+        #Check if plane and ray are parallel
+        ndotRayDirection = np.dot(n,ray.d)
+        if (np.fabs(ndotRayDirection)<0.001) :   #almost zero
+            return False
+
+        #compute d parameter
+        d=np.dot(n,self.v1)
+
+        #compute t (length of the ray at intersection point)
+        t = (np.dot(n,ray.o)+d)/ndotRayDirection
+        #check if triangle is behind ray
+        if(t<0):
+            return False
+
+        #compute intersection point
+        p=ray.o+t*ray.d
+
+        #Step 2: check if p is inside the triangle
+        #edge 1
+        edge1=self.v2-self.v1
+        v1p=p-self.v1
+        c=np.cross(edge1,v1p) #vector perpendicular to triangle's plane (orthogonal)
+        if(np.dot(n,c) < 0):
+            return False #p is on the right side
+
+        #edge 2
+        edge2=self.v3-self.v2
+        v2p=p-self.v2
+        c=np.cross(edge2,v2p)
+        if(np.dot(n,c) < 0):
+            return False
+
+        # edge 3
+        edge3 = self.v1 - self.v3
+        v3p = p - self.v3
+        c = np.cross(edge3, v3p)
+        if (np.dot(n, c) < 0):
+            return False
+
+        #check if triangle is out of range
+        if(ray.t<t):
+            ray.t=t
+            return True
+
         """
         // Barycentric approach according to lecture slides
   // Ray: x=o+t*d
@@ -144,6 +187,6 @@ class Triangle(Shape):
   }
 
         """
-        return True
+        return False
 
 
