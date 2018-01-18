@@ -2,6 +2,7 @@
 
 .idea
 __pycache__
+generatedImages
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
