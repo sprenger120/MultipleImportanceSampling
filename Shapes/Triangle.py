@@ -3,6 +3,7 @@
 
 import numpy as np
 from Shapes.shape import Shape
+from ray import Ray
 
 # vertices are always given in CW order
 
@@ -17,12 +18,12 @@ class Triangle(Shape):
         self.tri=True
 
     def intersect(self, ray):
+        ray.d = ray.d / np.linalg.norm(ray.d)
 
         #compute planes`s normal
-
         v1v2=self.v2-self.v1
         v1v3=self.v3-self.v1
-        n=np.cross(v1v2,v1v3)
+        n = np.cross(v1v2,v1v3)
 
         #Step 1: finding the intersection point with triangle plane
 
@@ -32,10 +33,11 @@ class Triangle(Shape):
             return False
 
         #compute d parameter
-        d=np.dot(n,self.v1)
+        d=np.dot(n,self.v1 / np.linalg.norm(self.v1))
 
         #compute t (length of the ray at intersection point)
-        t = (np.dot(n,ray.o)+d)/ndotRayDirection
+        t = -(np.dot(n,ray.o)+d)/ndotRayDirection
+
         #check if triangle is behind ray
         if(t<0):
             return False
@@ -48,27 +50,51 @@ class Triangle(Shape):
         edge1=self.v2-self.v1
         v1p=p-self.v1
         c=np.cross(edge1,v1p) #vector perpendicular to triangle's plane (orthogonal)
-        if(np.dot(n,c) < 0):
+        if(np.dot(n,c / np.linalg.norm(c)) < 0):
             return False #p is on the right side
 
         #edge 2
         edge2=self.v3-self.v2
         v2p=p-self.v2
         c=np.cross(edge2,v2p)
-        if(np.dot(n,c) < 0):
+        if(np.dot(n,c / np.linalg.norm(c)) < 0):
             return False
 
         # edge 3
         edge3 = self.v1 - self.v3
         v3p = p - self.v3
         c = np.cross(edge3, v3p)
-        if (np.dot(n, c) < 0):
+        if (np.dot(n, c / np.linalg.norm(c)) < 0):
             return False
 
         #check if triangle is out of range
-        if(ray.t<t):
-            ray.t=t
-            return True
+        if (t > Ray.maxRayLength) :
+            return False
+        ray.t = t
+        return True
+
+
+        """
+        e1 = self.v1 - self.v3
+        e2 = self.v2 - self.v3
+        tt = ray.o - self.v3
+        pp = np.cross(e2, -ray.d)
+        qq = np.cross(e1, tt)
+        detA = np.dot(e1, pp)
+
+        if (np.abs(detA) < 0.0001) :
+            return False
+
+        uvw = np.zeros(3)
+        uvw[0] = (np.dot(tt, pp)) / detA
+        uvw[1] = (np.dot(-ray.d, qq)) / detA
+        uvw[2] = 1 - uvw[0] - uvw[1]
+        t = (np.dot(-e2, qq)) / detA
+        ray.t = t
+        return True
+        """
+
+
 
         """
         // Barycentric approach according to lecture slides
@@ -187,6 +213,5 @@ class Triangle(Shape):
   }
 
         """
-        return False
 
 

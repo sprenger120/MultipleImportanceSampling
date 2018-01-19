@@ -40,21 +40,28 @@ class MISIntegrator(Integrator):
     def ell(self, scene, ray):
         if scene.intersectLights(ray) or scene.intersectObjects(ray) :
             # intersection point where object was hit
+            ray.d = ray.d / np.linalg.norm(ray.d)
             intersPoint = ray.o + ray.d*ray.t
 
-            # only for spheres
-            intersectionNormal = intersPoint / np.linalg.norm(intersPoint)
-
+            intersectionNormal = 0
             if (ray.firstHitShape.tri==True) :
                 v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
                 v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
                 intersectionNormal = np.cross(v1v2, v1v3)
+                print("d ", ray.d, " o ", ray.o, " t ", ray.t)
+                print("normal ", intersectionNormal)
+            else :
+                # only for spheres
+                intersectionNormal = intersPoint
+
+            # normalize normal vector
+            intersectionNormal = intersPoint / np.linalg.norm(intersPoint)
 
             val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
             return val
             # return ray.firstHitShape.color
 
-        return [0,0,0] # no intersection so we stare into the deep void
+        return [0.25,0.25,0.25] # no intersection so we stare into the deep void
 
 
 
