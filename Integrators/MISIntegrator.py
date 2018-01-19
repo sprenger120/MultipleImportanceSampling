@@ -47,9 +47,9 @@ class MISIntegrator(Integrator):
             if (ray.firstHitShape.tri==True) :
                 v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
                 v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
-                intersectionNormal = np.cross(v1v2, v1v3)
-                print("d ", ray.d, " o ", ray.o, " t ", ray.t)
-                print("normal ", intersectionNormal)
+                intersectionNormal = -np.cross(v1v2, v1v3)
+               # print("d ", ray.d, " o ", ray.o, " t ", ray.t)
+               # print("normal ", intersectionNormal)
             else :
                 # only for spheres
                 intersectionNormal = intersPoint
