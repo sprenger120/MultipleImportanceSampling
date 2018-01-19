@@ -79,24 +79,15 @@ def rotation_matrix_numpy(axis, theta):
 # integration
 
 defaultNormal = np.array([0,0,1])
-alteredNormal = [0,0.75,0.75]
+alteredNormal = np.array([-0.30001221 ,-2.34517234 ,-4.90247917])
 alteredNormal = alteredNormal / np.linalg.norm(alteredNormal)
 
-print(alteredNormal)
+#print(alteredNormal)
 # angles = r3Tos2
 
-a = alteredNormal
+#print(np.dot(defaultNormal, alteredNormal))
+roateMatrix = rotation_matrix_numpy(np.cross(defaultNormal,alteredNormal), np.dot(defaultNormal, alteredNormal) * np.pi)
 
-#angleX = 0.5
-#angleY = 0
-#angleZ = 0
-
-roateMatrix = rotation_matrix_numpy(np.cross(alteredNormal,defaultNormal), np.dot(defaultNormal, alteredNormal))
-#roateMatrixY = rotation_matrix_numpy([0,1,0],angleY * np.pi)
-#roateMatrixZ = rotation_matrix_numpy([0,0,1],angleZ * np.pi)
-
-
-#roateMatrix = np.matmul(np.matmul(roateMatrixX,roateMatrixY), roateMatrixZ)
 
 
 N = 512
@@ -144,11 +135,13 @@ soa[1,:] = [0, 0, 0,  alteredNormal[0], alteredNormal[1], alteredNormal[2]]
 
 X, Y, Z, U, V, W = zip(*soa)
 
-ax.quiver(X, Y, Z, U, V, W, color=[[0,0,1],[0,1,0]], pivot="tail")
+ax.quiver(X, Y, Z, U, V, W, color=[[0,0,1],[0,1,0]], pivot="tail", length=0.9)
 
 
-ax.scatter(0, 0, 0, c=[[1,0,0]])
 ax.scatter( omegasr3[:,0], omegasr3[:,1], omegasr3[:,2])
+
+rotatedSphereCenter = np.dot(roateMatrix, defaultNormal) * 1.1
+ax.scatter(rotatedSphereCenter[0],rotatedSphereCenter[1],rotatedSphereCenter[2] , c=[[1,0,0]])
 
 ax.set_xlabel('X........................')
 ax.set_ylabel('Y........................')
