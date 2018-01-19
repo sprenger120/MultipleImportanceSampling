@@ -13,45 +13,94 @@ import util as util
 from Integrators.MISIntegrator import MISIntegrator
 from Shapes.sphere import Sphere
 from Shapes.Triangle import Triangle
-from Shapes.Lights.Lights import SphereLight
+from Shapes.Lights.Lights import SphereLight, TriangleLight
 from camera import Camera
 from scene import Scene
 from datetime import datetime, timezone
 import os
 
 
+"""
+
+CCW coordinate direction
+
+"""
 
 def createScene() :
-    
     scene = Scene()
 
+    # can be directly taken from fast triangle viewer
+    # only contains triangles
+    polyArray = [
+        [[0.0, 2.0, -4.0], [3.0, 2.0, -3.0], [3.0, 3.0, -4.0], [1, 1, 1]],
+
+        [[-3.0, 0, -4], [-3, 0, -4], [-3, 3, -6], [1, 1, 1]],
+    ]
+
+
+    # transfer poly array to scene
+    for n in range(len(polyArray)) :
+        scene.objects.append(
+            Triangle(np.array(polyArray[n][0]), np.array(polyArray[n][1]), np.array(polyArray[n][2]), polyArray[n][3])
+        )
+
+
     scene.objects.append(
-        Sphere(np.array([0.0, 0.0, 3.0]), 1.0, [1, 1, 1])
+        Sphere(np.array([0.0, 0.0, -3.0]), 1.0, [1, 1, 1])
     )
 
     scene.objects.append(
-        Sphere(np.array([0.0, -1.0, 3.0]), 2.0, [0, 0, 1])
+        Sphere(np.array([1.0, -1.0, -3.0]), 1.0, [0, 0, 1])
     )
 
-    scene.objects.append(
-        Triangle(np.array([0.0,2.0,4.0]),np.array([3.0,2.0,3.0]),np.array([3.0,5.0,4.0]), [1,0,0])
+
+
+    # does not seem to work yet
+    scene.lights.append(
+        TriangleLight(np.array([-3.0, 0, -4]),np.array([-2.5, 0, -4]),np.array([-2.5, 3, -6]),
+                      [1,1,1], 3)
     )
 
+
     scene.lights.append(
-        SphereLight(np.array([2.0, 0, 3.0]), 0.1, #position, radius
-                    [1, 1, 1], 10) # light color, light intensity
+        SphereLight(np.array([2.0, 0, 3.0]), 1, #position, radius
+                    [1, 1, 1], 2) # light color, light intensity
     )
     scene.lights.append(
-        SphereLight(np.array([-2.0, 0, 3]), 0.1, #position, radius
-                    [1, 1, 1], 5) # light color, light intensity
-    )
-    scene.lights.append(
-        SphereLight(np.array([2.0, 0, -2]), 0.5,  # position, radius
-                    [1, 1, 1], 5)  # light color, light intensity
+        SphereLight(np.array([-2.0, 0, 3]), 1, #position, radius
+                    [1, 1, 1], 2) # light color, light intensity
     )
 
     return scene
 
+
+def createCoordinateScene() :
+    scene = Scene()
+
+    scene.objects.append(
+        Sphere(np.array([0, 0.0, 0]), 0.2, [1, 1, 1])
+    )
+
+    scene.objects.append(
+        Sphere(np.array([1, 0.0, 0]), 0.2, [1, 0, 0])
+    )
+
+    scene.objects.append(
+        Sphere(np.array([0, 1.0, 0]), 0.2, [0, 1, 0])
+    )
+
+    scene.objects.append(
+        Sphere(np.array([-1, 0.0, 5]), 0.2, [0, 0, 1])
+    )
+
+
+    scene.lights.append(
+        SphereLight(np.array([0, 0, 3.0]), 0.5,  # position, radius
+                    [1, 1, 1], 2)  # light color, light intensity
+    )
+
+
+    return scene
 
 def createCornellBox():
     # todo
@@ -84,6 +133,7 @@ height = 512
 
 integrator = MISIntegrator()
 scene = createScene()
+#scene = createCoordinateScene()
 
 im = render( width, height, scene, integrator)
 
