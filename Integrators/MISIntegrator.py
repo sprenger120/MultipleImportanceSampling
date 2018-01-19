@@ -2,6 +2,7 @@ from Integrators.integrator import Integrator
 from ray import Ray
 import numpy as np
 import util as util
+from Shapes.Triangle import  Triangle
 
 """
 Angles on the sphere
@@ -34,8 +35,8 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 10
-    defaultHemisphereNormal = [1, 0, 0]
+    sampleCount = 100
+    defaultHemisphereNormal = [0, 0, 1]
 
     def ell(self, scene, ray):
         if scene.intersectLights(ray) or scene.intersectObjects(ray) :
@@ -43,19 +44,21 @@ class MISIntegrator(Integrator):
             ray.d = ray.d / np.linalg.norm(ray.d)
             intersPoint = ray.o + ray.d*ray.t
 
+
+            #if ray.firstHitShape.tri:
+            #    print("")
+
             intersectionNormal = 0
-            if (ray.firstHitShape.tri==True) :
+            if isinstance(ray.firstHitShape, Triangle)  :
                 v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
                 v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
-                intersectionNormal = -np.cross(v1v2, v1v3)
-               # print("d ", ray.d, " o ", ray.o, " t ", ray.t)
-               # print("normal ", intersectionNormal)
+                intersectionNormal = np.cross(v1v3, v1v2)
             else :
                 # only for spheres
                 intersectionNormal = intersPoint
 
             # normalize normal vector
-            intersectionNormal = intersPoint / np.linalg.norm(intersPoint)
+            intersectionNormal = intersectionNormal / np.linalg.norm(intersectionNormal)
 
             val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
             return val
@@ -89,8 +92,10 @@ class MISIntegrator(Integrator):
 
         # Calculate matrix that rotates from the default hemisphere normal
         # to the intersection normal
-        sampleRoatationMatrix = self.rotation_matrix_numpy(np.cross(intersectionNormal, MISIntegrator.defaultHemisphereNormal),
-                                            np.dot(MISIntegrator.defaultHemisphereNormal, intersectionNormal))
+        sampleRoatationMatrix = self.rotation_matrix_numpy(np.cross(MISIntegrator.defaultHemisphereNormal, intersectionNormal) ,
+                                            np.dot(MISIntegrator.defaultHemisphereNormal, intersectionNormal) * np.pi)
+        #if ray.firstHitShape.tri:
+        #    ray.print2()
 
         # integrate over sphere using monte carlo
         for sampleNr in range(MISIntegrator.sampleCount):
@@ -115,7 +120,12 @@ class MISIntegrator(Integrator):
 
             # to get direction for ray we aquire the vector from the intersection point to our adjusted point on
             # the sphere
-            lightSenseRay.d =  intersPoint - lightSenseRaySecondPoint
+            lightSenseRay.d = -lightSenseRaySecondPoint
+            lightSenseRay.d = lightSenseRay.d / np.linalg.norm(lightSenseRay.d)
+
+            #if ray.firstHitShape.tri:
+            #    lightSenseRay.print2(sampleNr+1)
+
 
             # send ray on its way
             if scene.intersectLights(lightSenseRay) :
