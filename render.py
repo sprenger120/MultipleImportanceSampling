@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 import os
 
 
+
 def createScene() :
     
     scene = Scene()
@@ -33,21 +34,21 @@ def createScene() :
     )
 
     scene.objects.append(
-        Triangle(np.array([0.0,0.0,4.0]),np.array([3.0,0.0,3.0]),np.array([3.0,3.0,4.0]), [1,0,0])
+        Triangle(np.array([0.0,2.0,4.0]),np.array([3.0,2.0,3.0]),np.array([3.0,5.0,4.0]), [1,0,0])
     )
 
     scene.lights.append(
         SphereLight(np.array([2.0, 0, 3.0]), 0.1, #position, radius
                     [1, 1, 1], 10) # light color, light intensity
     )
-   # scene.lights.append(
-   #     SphereLight(np.array([-2.0, 0, 3]), 0.1, #position, radius
-   #                 [1, 0, 0], 5) # light color, light intensity
-  #  )
-   # scene.lights.append(
-   #     SphereLight(np.array([3.0, 0, 3]), 0.1,  # position, radius
-   #                 [0, 1, 0], 10)  # light color, light intensity
-   # )
+    scene.lights.append(
+        SphereLight(np.array([-2.0, 0, 3]), 0.1, #position, radius
+                    [1, 1, 1], 5) # light color, light intensity
+    )
+    scene.lights.append(
+        SphereLight(np.array([2.0, 0, -2]), 0.5,  # position, radius
+                    [1, 1, 1], 5)  # light color, light intensity
+    )
 
     return scene
 

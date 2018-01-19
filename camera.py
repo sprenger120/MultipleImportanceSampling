@@ -26,7 +26,7 @@ import ray
 class Camera :
 
     def __init__( self, res_x = 512, res_y = 512):
-        self.pos = [0, 0, -5]
+        self.pos = [0, 0, -10]
         self.viewdir = np.array( [0.0, 1.0, 0.0])
         self.updir = np.array( [0.0, 0.0, 1.0])
         self.fov = (30.0 * np.pi) / 180.0
