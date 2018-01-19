@@ -25,5 +25,14 @@ class Ray :
         # when a ray hits an object, the intersection method will shorten the ray by altering the t parameter
         return self.t < Ray.maxRayLength
 
+    def print(self):
+        print("o= ", self.o, " d=", self.d, " t=", self.t)
+        return
+
+    def print2(self, n = 0):
+        # soa[0,:] = [0.02734108, 2.02323992 , 3.99863295,-0.13667557 ,-1.08559515 ,-4.32858486]
+        print("soa[",n,",:] =[", self.o[0], ",", self.o[1], ",",self.o[2], ",",self.d[0], ",",self.d[1], ",",self.d[2], "]")
+        return
+
         
         
