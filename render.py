@@ -27,7 +27,11 @@ CCW coordinate direction
 
 """
 
-enableSubPixelRendering = False # x4 Render time
+enableSubPixelRendering = False # x5 Render time
+
+
+# time spent rendering
+timeUsedSec = 0
 
 def createScene() :
     scene = Scene()
@@ -49,29 +53,31 @@ def createScene() :
 
 
     scene.objects.append(
-        Sphere(np.array([0.0, 0.0, -3.0]), 1.0, [1, 1, 1])
+        Sphere(np.array([0.0, -2.0, -3.0]), 0.5, [1, 1, 1])
     )
 
     scene.objects.append(
-        Sphere(np.array([1.0, -1.0, -3.0]), 1.0, [0, 0, 1])
+        Sphere(np.array([1.0, -1.0, 0.0]), 0.5, [0, 0, 1])
     )
 
 
 
     # does not seem to work yet
+    """
     scene.lights.append(
         TriangleLight(np.array([-3.0, 0, -4]),np.array([-2.5, 0, -4]),np.array([-2.5, 3, -6]),
-                      [1,1,1], 5)
+                      [1,1,1], 100)
     )
-
+    """
 
     scene.lights.append(
-        SphereLight(np.array([2.0, 0, 3.0]), 1, #position, radius
-                    [1, 1, 1], 5) # light color, light intensity
+        SphereLight(np.array([-2.0, 3, 0.0]), 1, #position, radius
+                    [1, 1, 1], 8) # light color, light intensity
     )
+
     scene.lights.append(
-        SphereLight(np.array([-2.0, 0, 3]), 1, #position, radius
-                    [1, 1, 1], 5) # light color, light intensity
+        SphereLight(np.array([-2.0, -3, 0]), 1, #position, radius
+                    [1, 0, 0], 8) # light color, light intensity
     )
 
     return scene
@@ -109,10 +115,20 @@ def createCornellBox():
     # todo
     return
 
+def formatSeconds(seconds):
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    return "%dh %02dm %02ds" % (h, m, s)
+
 
 
 def render( res_x, res_y, scene, integrator) :
+    global timeUsedSec
+
     print("\n")
+    if enableSubPixelRendering:
+        print("Subpixel Rendering enabled (Render time x5)")
+
     cam = Camera( res_x, res_y)
     totalPixels = res_x * res_y
 
@@ -138,27 +154,31 @@ def render( res_x, res_y, scene, integrator) :
             subPixelCount = 1
             ellValSum = np.zeros(3)
 
+            #top left
             r = cam.generateRay(ix, iy)
             ellValSum += integrator.ell(scene, r)
 
             if enableSubPixelRendering:
-                # sub pixel 1,0
-                if ix < res_x - 1:
-                    r = cam.generateRay(ix + 0.5, iy)
-                    ellValSum += integrator.ell(scene, r)
-                    subPixelCount += 1
+                # middle
+                r = cam.generateRay(ix + 0.5, iy + 0.5)
+                ellValSum += integrator.ell(scene, r)
+                subPixelCount += 1
 
-                # sub pixel 0,1
-                if iy < res_y - 1:
-                    r = cam.generateRay(ix, iy + 0.5)
-                    ellValSum += integrator.ell(scene, r)
-                    subPixelCount += 1
+                #top right
+                r = cam.generateRay(ix+1, iy)
+                ellValSum += integrator.ell(scene, r)
+                subPixelCount += 1
 
-                # sub pixel 0,1
-                if iy < res_y - 1 and ix < res_x - 1:
-                    r = cam.generateRay(ix + 0.5, iy + 0.5)
-                    ellValSum += integrator.ell(scene, r)
-                    subPixelCount += 1
+                #bottom left
+                r = cam.generateRay(ix, iy + 1)
+                ellValSum += integrator.ell(scene, r)
+                subPixelCount += 1
+
+                # bottom right
+                r = cam.generateRay(ix + 1, iy + 1)
+                ellValSum += integrator.ell(scene, r)
+                subPixelCount += 1
+
                 ellValSum /= subPixelCount
 
             # always clip color so that imshow interpretes as rgb 0.0 - 1.0
@@ -170,17 +190,12 @@ def render( res_x, res_y, scene, integrator) :
         rowTimeSec = time.process_time() - rowTimeSec
         timePerPixelSec = rowTimeSec / res_y
         remainingTimeSec = timePerPixelSec * (totalPixels - calculatedPixels)
-
-        m, s = divmod(remainingTimeSec, 60)
-        h, m = divmod(m, 60)
-
         timeUsedSec = time.process_time() - usedTime
-        m2, s2 = divmod(timeUsedSec, 60)
-        h2, m2 = divmod(m2, 60)
+
 
         print("\rProgress: ", np.floor((calculatedPixels / totalPixels) * 100),"%",
-              "Time Used: %d:%02d:%02d " % (h2, m2, s2),
-              "ETA: %d:%02d:%02d " % (h, m, s),
+              "Time Used: ", formatSeconds(timeUsedSec),
+              "ETA: ", formatSeconds(remainingTimeSec),
               "Time per Pixel:%6.1fms" % (timePerPixelSec * 1000),
               end='', flush=True)
 
@@ -228,7 +243,13 @@ directory = "generatedImages/"
 if not os.path.exists(directory):
     os.makedirs(directory)
 
-fig.savefig(directory + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") + ".png", transparent=True)
+filename = directory + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") \
+           + "_" + str(MISIntegrator.sampleCount) + "Samples_RenderTime_" + formatSeconds(timeUsedSec)
+
+if enableSubPixelRendering:
+    filename += "_SubpixelRendering"
+
+fig.savefig(filename + ".png", transparent=True)
 plt.show()
 
 
