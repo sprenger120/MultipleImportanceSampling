@@ -3,6 +3,7 @@ from ray import Ray
 import numpy as np
 import util as util
 from Shapes.Triangle import  Triangle
+import copy
 
 """
 Angles on the sphere
@@ -35,11 +36,30 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 10
+    sampleCount = 128
     defaultHemisphereNormal = [0, 0, 1]
 
     def ell(self, scene, ray):
-        if scene.intersectLights(ray) or scene.intersectObjects(ray) :
+        # intersection tests modify the rays so we want to copy them
+        # to make sure we can distinguish between them later
+        rayLights = copy.copy(ray)
+        rayObj = copy.copy(ray)
+
+        hitObj = scene.intersectObjects(rayObj)
+        hitLight = scene.intersectLights(rayLights)
+
+        #if we hit both object and light take the nearest one
+        if hitObj and hitLight:
+            if rayLights.t > rayObj.t :
+                ray = rayLights
+                hitObj = False
+            else:
+                ray = rayObj
+                hitLight = False
+
+        # we have it an object
+        if  hitObj and not hitLight  :
+            ray = rayObj
             # intersection point where object was hit
             ray.d = ray.d / np.linalg.norm(ray.d)
             intersPoint = ray.o + ray.d*ray.t
@@ -62,9 +82,13 @@ class MISIntegrator(Integrator):
 
             val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
             return val
-            # return ray.firstHitShape.color
 
-        return [0.25,0.25,0.25] # no intersection so we stare into the deep void
+        # we have hit light
+        if hitLight and not hitObj :
+            return rayLights.firstHitShape.color
+
+        # no intersection so we stare into the deep void
+        return [0.25,0.25,0.25]
 
 
 
@@ -131,11 +155,12 @@ class MISIntegrator(Integrator):
             if scene.intersectLights(lightSenseRay) :
                 # weigh light intensity by various factors
                 aquiredLight = lightSenseRay.firstHitShape.lightIntensity
-                # lambert light model (cos weighting)
 
-                # todo  this line is incorrect;   we need angle between intersection normal and
-                # ray being shot out
-                # aquiredLight *= np.cos(randomDirection[1])
+                # lambert light model (cos weighting)
+                # perpendicular light has highest intensity
+                #
+                aquiredLight *= np.abs(np.dot(intersectionNormal,lightSenseRay.d))
+
 
                 aquiredLightSum += aquiredLight
 
