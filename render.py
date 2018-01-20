@@ -18,6 +18,7 @@ from camera import Camera
 from scene import Scene
 from datetime import datetime, timezone
 import os
+import time
 
 
 """
@@ -25,6 +26,8 @@ import os
 CCW coordinate direction
 
 """
+
+enableSubPixelRendering = False # x4 Render time
 
 def createScene() :
     scene = Scene()
@@ -58,17 +61,17 @@ def createScene() :
     # does not seem to work yet
     scene.lights.append(
         TriangleLight(np.array([-3.0, 0, -4]),np.array([-2.5, 0, -4]),np.array([-2.5, 3, -6]),
-                      [1,1,1], 3)
+                      [1,1,1], 5)
     )
 
 
     scene.lights.append(
         SphereLight(np.array([2.0, 0, 3.0]), 1, #position, radius
-                    [1, 1, 1], 2) # light color, light intensity
+                    [1, 1, 1], 5) # light color, light intensity
     )
     scene.lights.append(
         SphereLight(np.array([-2.0, 0, 3]), 1, #position, radius
-                    [1, 1, 1], 2) # light color, light intensity
+                    [1, 1, 1], 5) # light color, light intensity
     )
 
     return scene
@@ -112,19 +115,77 @@ def render( res_x, res_y, scene, integrator) :
     print("\n")
     cam = Camera( res_x, res_y)
     totalPixels = res_x * res_y
-    
+
+    """
+        * Main pixel (without offset)
+        # Sub Pixels
+
+        (0,0)    (1, 0)
+        *----------#
+        |          |
+        |  Pixel   |
+        |    on    |
+        |  Screen  |
+        |          |
+        #----------#     
+        (0, 1)   (1,1)
+    """
+    usedTime = time.process_time()
     for ix in range( res_x) :
+        rowTimeSec = time.process_time()
         for iy in range( res_y) :
 
-            r = cam.generateRay( ix, iy)
+            subPixelCount = 1
+            ellValSum = np.zeros(3)
 
-            ellval = integrator.ell( scene, r)
+            r = cam.generateRay(ix, iy)
+            ellValSum += integrator.ell(scene, r)
+
+            if enableSubPixelRendering:
+                # sub pixel 1,0
+                if ix < res_x - 1:
+                    r = cam.generateRay(ix + 0.5, iy)
+                    ellValSum += integrator.ell(scene, r)
+                    subPixelCount += 1
+
+                # sub pixel 0,1
+                if iy < res_y - 1:
+                    r = cam.generateRay(ix, iy + 0.5)
+                    ellValSum += integrator.ell(scene, r)
+                    subPixelCount += 1
+
+                # sub pixel 0,1
+                if iy < res_y - 1 and ix < res_x - 1:
+                    r = cam.generateRay(ix + 0.5, iy + 0.5)
+                    ellValSum += integrator.ell(scene, r)
+                    subPixelCount += 1
+                ellValSum /= subPixelCount
+
             # always clip color so that imshow interpretes as rgb 0.0 - 1.0
             # clip color will also check color valididty and raise exception if necessary
-            cam.image[ix,iy, :] = util.clipColor(ellval)
-        print("\rRender Progress", np.floor(((ix*res_y + iy) / totalPixels) * 100), "%       ", end='', flush=True)
+            cam.image[ix, iy, :] = util.clipColor(ellValSum)
+
+        # some progress and time estimation
+        calculatedPixels = ix * res_y + iy
+        rowTimeSec = time.process_time() - rowTimeSec
+        timePerPixelSec = rowTimeSec / res_y
+        remainingTimeSec = timePerPixelSec * (totalPixels - calculatedPixels)
+
+        m, s = divmod(remainingTimeSec, 60)
+        h, m = divmod(m, 60)
+
+        timeUsedSec = time.process_time() - usedTime
+        m2, s2 = divmod(timeUsedSec, 60)
+        h2, m2 = divmod(m2, 60)
+
+        print("\rProgress: ", np.floor((calculatedPixels / totalPixels) * 100),"%",
+              "Time Used: %d:%02d:%02d " % (h2, m2, s2),
+              "ETA: %d:%02d:%02d " % (h, m, s),
+              "Time per Pixel:%6.1fms" % (timePerPixelSec * 1000),
+              end='', flush=True)
 
     return cam.image
+
     
 #colors are RGB 0 to 1
 
@@ -134,6 +195,8 @@ height = 512
 integrator = MISIntegrator()
 scene = createScene()
 #scene = createCoordinateScene()
+
+#im = render( width, height, scene, integrator)
 
 im = render( width, height, scene, integrator)
 
