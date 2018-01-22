@@ -11,7 +11,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # last triangle is always red so you can see which one you are editing when true
 # color you specified otherwise
-lastTriangleRed = True
+lastTriangleRed = False
 
 
 # one row is one triangle
@@ -19,9 +19,9 @@ lastTriangleRed = True
 # coordinates in XYZ form
 # vertex order is CCW (not important for this but later for raytracer)
 polyArray = [
-    [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [1,1,1]],        #floor
+    [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [0,0,1]],        #floor
 
-    [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [5.0, -5.0, 12.0], [1,1,1]],        #floor
+    [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [5.0, -5.0, 12.0], [0,0,1]],        #floor
 
     [[5.0, -5.0, 0.0], [5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1,0,0]],      #left wall
 
@@ -31,20 +31,27 @@ polyArray = [
 
     [[5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],     #right wall
 
-    [[5.0, -5.0, 12.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [1, 1, 1]],    #back wall
+    [[5.0, -5.0, 12.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [0, 0, 1]],    #back wall
 
-    [[5.0, -5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [1, 1, 1]],  #back wall
+    [[5.0, -5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [0, 0, 1]],  #back wall
 
-    [[-5.0, -5.0, 0.0], [-5.0, 5.0, 0.0], [-5.0, -5.0, 12.0], [1,1,1]],     #ceiling
+    [[-5.0, -5.0, 0.0], [-5.0, 5.0, 0.0], [-5.0, -5.0, 12.0], [0,0,1]],     #ceiling
 
-    [[-5.0, 5.0, 0.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [1,1,1]],     #ceiling
+    [[-5.0, 5.0, 0.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [0,0,1]],     #ceiling
+
+    [[5.0, 1.0, 2.0], [5.0, 3.0, 2.0], [3.0, 3.0, 2.0], [1, 0, 0]],  # first block
+
+    [[5.0, 1.0, 2.0], [3.0, 3.0, 2.0], [3.0, 1.0, 2.0], [1, 0, 0]],  # first block
+
+    [[5.0, 3.0, 2.0], [5.0, 3.0, 4.0], [3.0, 3.0, 4.0], [1, 0, 0]],  # first block
+
+    [[5.0, 3.0, 2.0], [3.0, 3.0, 4.0], [3.0, 3.0, 2.0], [1, 0, 0]],  # first block
+
+    [[3.0, 1.0, 2.0], [3.0, 3.0, 2.0], [3.0, 3.0, 4.0], [1, 0, 0]],  # first block
+
+    [[3.0, 1.0, 2.0], [3.0, 3.0, 4.0], [3.0, 1.0, 4.0], [1, 0, 0]],  # first block
 
 ]
-
-
-
-
-
 
 fig = plt.figure(figsize=plt.figaspect(0.5)*1.5)
 ax = fig.add_subplot(111, projection='3d')
@@ -105,7 +112,7 @@ soa[2,:] = [0, 0, 0,  0, 0, -1]
 
 
 uvw = np.array([0.33,0.33,0.33])
-
+"""
 # add triangle face arrow
 for n in range(len(compatiblePolyArray)):
     arrowStart = np.array(compatiblePolyArray[n][0]) * uvw[0] +  \
@@ -126,7 +133,7 @@ for n in range(len(compatiblePolyArray)):
 
 X, Y, Z, U, V, W = zip(*soa)
 ax.quiver(X, Y, Z, U, V, W, color=[[1,0,1],[0,1,0],[0,0,1],[0,0,0]], pivot="tail", length=1)
-
+"""
 
 ax.set_xlabel('X........................')
 ax.set_ylabel('Y........................')
