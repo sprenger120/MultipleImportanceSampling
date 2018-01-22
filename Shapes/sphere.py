@@ -7,12 +7,13 @@ Created on Tue Dec 12 13:58:48 2017
 """
 
 import numpy as np
-
 from Shapes.shape import Shape
-
+import time
 
 class Sphere( Shape) :
-    
+    intersectTimeSec = 0
+    intersectCount = 0
+
     def __init__(self, pos, r, color) :
     
         super().__init__(color)
@@ -20,8 +21,15 @@ class Sphere( Shape) :
         self.pos = pos
         self.r = r
         self.tri = False    #no triangle
-        
+
     def intersect(self, ray):
+        Sphere.intersectCount += 1
+        t0 = time.process_time()
+        val = self.auxIntersect(ray)
+        Sphere.intersectTimeSec += time.process_time() - t0
+        return val
+
+    def auxIntersect(self, ray):
         
         # compute intersection point with sphere
         q = ray.o - self.pos
