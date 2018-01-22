@@ -49,9 +49,9 @@ polyArray = [
 fig = plt.figure(figsize=plt.figaspect(0.5)*1.5)
 ax = fig.add_subplot(111, projection='3d')
 ax.set_aspect('equal',)
-ax.set_xlim( -3.1, 3.1)
-ax.set_ylim( -3.1, 3.1)
-ax.set_zlim( -3.1, 3.1)
+ax.set_xlim( -10.1, 10.1)
+ax.set_ylim( -10.1, 10.1)
+ax.set_zlim( -10.1, 10.1)
 ax.grid(False)
 for a in (ax.w_xaxis, ax.w_yaxis, ax.w_zaxis):
     for t in a.get_ticklines()+a.get_ticklabels():
@@ -97,12 +97,35 @@ ax.add_collection3d(Poly3DCollection(compatiblePolyArray, color=colorArray))
 
 # plot coordinate arrows
 # x = red, y = green, z = blue
-soa = np.zeros((3,6))
+soa = np.zeros((3 + len(compatiblePolyArray),6))
+
 soa[0,:] = [0, 0, 0,  1, 0, 0]
 soa[1,:] = [0, 0, 0,  0, 1, 0]
 soa[2,:] = [0, 0, 0,  0, 0, -1]
+
+
+uvw = np.array([0.33,0.33,0.33])
+
+# add triangle face arrow
+for n in range(len(compatiblePolyArray)):
+    arrowStart = np.array(compatiblePolyArray[n][0]) * uvw[0] +  \
+                 np.array(compatiblePolyArray[n][1]) * uvw[1] + \
+                 np.array(compatiblePolyArray[n][2]) * uvw[2]
+
+    arrowDir = np.cross(np.array(compatiblePolyArray[n][1]) -  np.array(compatiblePolyArray[n][0]),
+                        np.array(compatiblePolyArray[n][2]) -  np.array(compatiblePolyArray[n][0]),
+                            )
+    soa[3+n, :] = [
+            arrowStart[0],
+            arrowStart[1],
+            arrowStart[2],
+            arrowDir[0],
+            arrowDir[1],
+            arrowDir[2]
+        ]
+
 X, Y, Z, U, V, W = zip(*soa)
-ax.quiver(X, Y, Z, U, V, W, color=[[1,0,1],[0,1,0],[0,0,1]], pivot="tail", length=1)
+ax.quiver(X, Y, Z, U, V, W, color=[[1,0,1],[0,1,0],[0,0,1],[0,0,0]], pivot="tail", length=1)
 
 
 ax.set_xlabel('X........................')
