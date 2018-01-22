@@ -12,7 +12,7 @@ import time
 
 class Sphere( Shape) :
     intersectTimeSec = 0
-    intersectCount = 0
+    intersectCount = 1
 
     def __init__(self, pos, r, color) :
     

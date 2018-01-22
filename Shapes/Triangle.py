@@ -11,7 +11,7 @@ import time
 
 class Triangle(Shape):
     intersectTimeSec = 0
-    intersectCount = 0
+    intersectCount = 1
 
     def __init__(self,v1,v2,v3, color):
 

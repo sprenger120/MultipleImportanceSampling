@@ -107,6 +107,14 @@ def createCornellBox():
 
         [[5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],     #right wall
 
+        [[5.0, -5.0, 12.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [1, 1, 1]],    # back wall
+
+        [[5.0, -5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [1, 1, 1]],  # back wall
+
+        [[-5.0, -5.0, 0.0], [-5.0, 5.0, 0.0], [-5.0, -5.0, 12.0], [1, 1, 1]],   # ceiling
+
+        [[-5.0, 5.0, 0.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [1, 1, 1]],   # ceiling
+
     ]
 
     # transfer poly array to scene
@@ -122,12 +130,12 @@ def createCornellBox():
     """
 
     scene.lights.append(
-        TriangleLight(np.array([-5.0, -1.0, 5.0]), np.array([-5.0, -1.0, 6.0]), np.array([-5.0, 1.0, 5.0]),
+        TriangleLight(np.array([-5.0, -1.0, 3.0]), np.array([-5.0, -1.0, 4.0]), np.array([-5.0, 1.0, 3.0]),
                       [1, 1, 1], 100)
     )
 
     scene.lights.append(
-        TriangleLight(np.array([-5.0, -1.0, 6.0]), np.array([-5.0, 1.0, 6.0]), np.array([-5.0, 1.0, 5.0]),
+        TriangleLight(np.array([-5.0, -1.0, 4.0]), np.array([-5.0, 1.0, 4.0]), np.array([-5.0, 1.0, 3.0]),
                       [1, 1, 1], 100)
     )
 
