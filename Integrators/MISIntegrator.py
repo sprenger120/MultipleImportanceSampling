@@ -4,6 +4,8 @@ import numpy as np
 import util as util
 from Shapes.Triangle import  Triangle
 import copy
+import time
+from Shapes.Lights.LightBase import LightBase
 
 """
 Angles on the sphere
@@ -36,56 +38,43 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 128
+    TracePrepTimeSec = 0
+    RayGenTimeSec = 0
+    ColorGenTimeSec = 0
+
+    sampleCount = 16
     defaultHemisphereNormal = [0, 0, 1]
 
+
     def ell(self, scene, ray):
-        # intersection tests modify the rays so we want to copy them
-        # to make sure we can distinguish between them later
-        rayLights = copy.copy(ray)
-        rayObj = copy.copy(ray)
-
-        hitObj = scene.intersectObjects(rayObj)
-        hitLight = scene.intersectLights(rayLights)
-
-        #if we hit both object and light take the nearest one
-        if hitObj and hitLight:
-            if rayLights.t > rayObj.t :
-                ray = rayLights
-                hitObj = False
-            else:
-                ray = rayObj
-                hitLight = False
+        hitSomething = scene.intersectObjects(ray)
+        hitSomething |= scene.intersectLights(ray)
 
         # we have it an object
-        if  hitObj and not hitLight  :
-            ray = rayObj
-            # intersection point where object was hit
-            ray.d = ray.d / np.linalg.norm(ray.d)
-            intersPoint = ray.o + ray.d*ray.t
+        if  hitSomething :
 
+            if isinstance(ray.firstHitShape, LightBase):
+                # we have hit light
+                return ray.firstHitShape.color
+            else:
+                # intersection point where object was hit
+                ray.d = ray.d / np.linalg.norm(ray.d)
+                intersPoint = ray.o + ray.d*ray.t
 
-            #if ray.firstHitShape.tri:
-            #    print("")
+                intersectionNormal = 0
+                if isinstance(ray.firstHitShape, Triangle)  :
+                    v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
+                    v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
+                    intersectionNormal = np.cross(v1v3, v1v2)
+                else :
+                    # only for spheres
+                    intersectionNormal = intersPoint
 
-            intersectionNormal = 0
-            if isinstance(ray.firstHitShape, Triangle)  :
-                v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
-                v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
-                intersectionNormal = np.cross(v1v3, v1v2)
-            else :
-                # only for spheres
-                intersectionNormal = intersPoint
+                # normalize normal vector
+                intersectionNormal = intersectionNormal / np.linalg.norm(intersectionNormal)
 
-            # normalize normal vector
-            intersectionNormal = intersectionNormal / np.linalg.norm(intersectionNormal)
-
-            val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
-            return val
-
-        # we have hit light
-        if hitLight and not hitObj :
-            return rayLights.firstHitShape.color
+                val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
+                return val
 
         # no intersection so we stare into the deep void
         return [0.25,0.25,0.25]
@@ -101,6 +90,9 @@ class MISIntegrator(Integrator):
         return 0
 
     def RandomStupidSampling(self, intersPoint, ray, scene, intersectionNormal):
+        ############################################################## Prepare
+        t0 = time.process_time()
+
         # all the light hitting our intersection point
         # this value is later normalized with the sample count
         # before that its just the sum of incoming light
@@ -118,11 +110,17 @@ class MISIntegrator(Integrator):
         # to the intersection normal
         sampleRoatationMatrix = self.rotation_matrix_numpy(np.cross(MISIntegrator.defaultHemisphereNormal, intersectionNormal) ,
                                             np.dot(MISIntegrator.defaultHemisphereNormal, intersectionNormal) * np.pi)
+
+        debugRayList = []
         #if ray.firstHitShape.tri:
         #    ray.print2()
 
+        MISIntegrator.TracePrepTime = time.process_time() - t0
+
         # integrate over sphere using monte carlo
         for sampleNr in range(MISIntegrator.sampleCount):
+            ############################################################## Sample Rays
+            t0 = time.process_time()
             lightSenseRay = Ray(intersPoint)
 
             #
@@ -147,9 +145,12 @@ class MISIntegrator(Integrator):
             lightSenseRay.d = -lightSenseRaySecondPoint
             lightSenseRay.d = lightSenseRay.d / np.linalg.norm(lightSenseRay.d)
 
+            #debugRayList.append(lightSenseRay)
+
             #if ray.firstHitShape.tri:
             #    lightSenseRay.print2(sampleNr+1)
 
+            MISIntegrator.RayGenTimeSec = time.process_time() - t0
 
             # send ray on its way
             if scene.intersectLights(lightSenseRay) :
@@ -168,6 +169,8 @@ class MISIntegrator(Integrator):
                 aquiredLightsColor[aquiredLightsCount] = lightSenseRay.firstHitShape.lightColor
                 aquiredLightsCount += 1
 
+        ############################################################## Calculate Light
+        t0 = time.process_time()
         combinedLightColor = np.zeros(3)
 
         # avoid / 0 when no light was aquired
@@ -188,8 +191,22 @@ class MISIntegrator(Integrator):
             # normalize light
             aquiredLightSum /= MISIntegrator.sampleCount
 
+            #if ray.firstHitShape.tri:
+            #    for n in range(len(debugRayList)):
+            #        debugRayList[n].print2(n)
+        #else:
+            """
+            if ray.firstHitShape.tri:
+                for n in range(len(debugRayList)):
+                    debugRayList[n].print2(n)
+            """
+        #    return [0,1,0]
+
+        MISIntegrator.ColorGenTimeSec = time.process_time() - t0
+
         # combine light color and object color + make it as bright as light that falls in
         return ray.firstHitShape.color * combinedLightColor * aquiredLightSum
+
 
     """
     theta, phi angles in radiant
@@ -201,6 +218,7 @@ class MISIntegrator(Integrator):
         r3[1] = np.sin(theta) * np.sin(phi)
         r3[2] = np.cos(theta)
         return r3
+
 
     """
     Renerates rotation matrix from given axis and angle
