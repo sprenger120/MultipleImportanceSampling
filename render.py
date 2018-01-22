@@ -19,6 +19,7 @@ from scene import Scene
 from datetime import datetime, timezone
 import os
 import time
+import cProfile
 
 
 """
@@ -39,45 +40,24 @@ def createScene() :
     # can be directly taken from fast triangle viewer
     # only contains triangles
     polyArray = [
-        [[5.0,-5.0,0.0], [5.0,5.0,0.0], [5.0,-5.0,12.0], [1,1,1]],
+        [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [1, 1, 1]],  # floor
 
-        [[-3.0, 0, -4], [-3, 0, -4], [-3, 3, -6], [1, 1, 1]],
+        [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [5.0, -5.0, 12.0], [1, 1, 1]],  # floor
+
+        [[5.0, -5.0, 0.0], [5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1, 0, 0]],  # left wall
+
+        [[5.0, -5.0, 12.0], [-5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1, 0, 0]]  # left wall
+
     ]
-
-
     # transfer poly array to scene
     for n in range(len(polyArray)) :
         scene.objects.append(
             Triangle(np.array(polyArray[n][0]), np.array(polyArray[n][1]), np.array(polyArray[n][2]), polyArray[n][3])
         )
 
-
-    scene.objects.append(
-        Sphere(np.array([0.0, -2.0, -3.0]), 0.5, [1, 1, 1])
-    )
-
-    scene.objects.append(
-        Sphere(np.array([1.0, -1.0, 0.0]), 0.5, [0, 0, 1])
-    )
-
-
-
-    # does not seem to work yet
-    """
     scene.lights.append(
-        TriangleLight(np.array([-3.0, 0, -4]),np.array([-2.5, 0, -4]),np.array([-2.5, 3, -6]),
-                      [1,1,1], 100)
-    )
-    """
-
-    scene.lights.append(
-        SphereLight(np.array([-2.0, 3, 0.0]), 1, #position, radius
-                    [1, 1, 1], 8) # light color, light intensity
-    )
-
-    scene.lights.append(
-        SphereLight(np.array([-2.0, -3, 0]), 1, #position, radius
-                    [1, 0, 0], 8) # light color, light intensity
+        SphereLight(np.array([0.0, 0.0, 0.0]), 1,  # position, radius
+                    [1, 1, 1], 16)  # light color, light intensity
     )
 
     return scene
@@ -112,7 +92,7 @@ def createCoordinateScene() :
     return scene
 
 def createCornellBox():
-    # todo
+    #todo
     scene=Scene()
     polyArray = [
         [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [1, 1, 1]],      #floor
@@ -252,9 +232,47 @@ scene = createCornellBox()
 
 #im = render( width, height, scene, integrator)
 
+
+#cProfile.run('im = render( width, height, scene, integrator)')
 im = render( width, height, scene, integrator)
 
 
+
+
+#
+# Generate Time Statistics
+#
+
+overall = timeUsedSec
+times = [
+    ["Triangle Intersect", Triangle.intersectTimeSec],
+    ["Sphere Intersect", Sphere.intersectTimeSec],
+    ["Trace Prep", MISIntegrator.TracePrepTimeSec],
+    ["Ray Generation", MISIntegrator.RayGenTimeSec],
+    ["Color Generation", MISIntegrator.ColorGenTimeSec],
+
+    ["Other", overall] # don't remove or edit
+    ]
+
+
+print("\n----------------------- Render Statistic -----------------------")
+print("Overall Time: %2.1fs" % overall)
+
+for n in range(len(times)):
+    print(times[n][0], ": %2.1fs" % times[n][1], " %2.1f" % ((times[n][1] / overall) * 100), "%" )
+    if n < len(times) - 1:
+        times[len(times)-1][1] -= times[n][1]
+
+print("Triangle Intersect Count: ", Triangle.intersectCount, " intersect speed: %6.2f µs" % ((Triangle.intersectTimeSec / Triangle.intersectCount) * 1000000))
+print("Sphere Intersect Count: ", Sphere.intersectCount, " intersect speed: %6.2f µs" % ((Sphere.intersectTimeSec / Sphere.intersectCount) * 1000000))
+
+
+print("\n----------------------- Render Statistic -----------------------")
+
+
+#
+# Save picture and show
+#
 
 # save in original resolution
 # https://stackoverflow.com/questions/34768717/matplotlib-unable-to-save-image-in-same-resolution-as-original-image
