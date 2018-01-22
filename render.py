@@ -55,9 +55,19 @@ def createScene() :
             Triangle(np.array(polyArray[n][0]), np.array(polyArray[n][1]), np.array(polyArray[n][2]), polyArray[n][3])
         )
 
+    #scene.lights.append(
+    #    SphereLight(np.array([0.0, 0.0, 0.0]), 1,  # position, radius
+    #                [1, 1, 1], 1)  # light color, light intensity
+    #)
+
     scene.lights.append(
-        SphereLight(np.array([0.0, 0.0, 0.0]), 1,  # position, radius
-                    [1, 1, 1], 16)  # light color, light intensity
+        TriangleLight(np.array([-5.0, -1.0, 3.0]), np.array([-5.0, -1.0, 4.0]), np.array([-5.0, 1.0, 3.0]),
+                      [1, 1, 1], 2)
+    )
+
+    scene.lights.append(
+        TriangleLight(np.array([-5.0, -1.0, 4.0]), np.array([-5.0, 1.0, 4.0]), np.array([-5.0, 1.0, 3.0]),
+                      [1, 1, 1], 2)
     )
 
     return scene
@@ -85,8 +95,9 @@ def createCoordinateScene() :
 
     scene.lights.append(
         SphereLight(np.array([0, 0, 3.0]), 0.5,  # position, radius
-                    [1, 1, 1], 2)  # light color, light intensity
+                    [1, 1, 1], 0.5)  # light color, light intensity
     )
+
 
 
     return scene
