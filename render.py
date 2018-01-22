@@ -39,7 +39,7 @@ def createScene() :
     # can be directly taken from fast triangle viewer
     # only contains triangles
     polyArray = [
-        [[0.0, 2.0, -4.0], [3.0, 2.0, -3.0], [3.0, 3.0, -4.0], [1, 1, 1]],
+        [[5.0,-5.0,0.0], [5.0,5.0,0.0], [5.0,-5.0,12.0], [1,1,1]],
 
         [[-3.0, 0, -4], [-3, 0, -4], [-3, 3, -6], [1, 1, 1]],
     ]
@@ -113,7 +113,45 @@ def createCoordinateScene() :
 
 def createCornellBox():
     # todo
-    return
+    scene=Scene()
+    polyArray = [
+        [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [1, 1, 1]],      #floor
+
+        [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [5.0, -5.0, 12.0], [1, 1, 1]],      #floor
+
+        [[5.0, -5.0, 0.0], [5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1, 0, 0]],    #left wall
+
+        [[5.0, -5.0, 12.0], [-5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1, 0, 0]],  #left wall
+
+        [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],       #right wall
+
+        [[5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],     #right wall
+
+    ]
+
+    # transfer poly array to scene
+    for n in range(len(polyArray)):
+        scene.objects.append(
+            Triangle(np.array(polyArray[n][0]), np.array(polyArray[n][1]), np.array(polyArray[n][2]), polyArray[n][3])
+        )
+    """
+    scene.lights.append(
+        SphereLight(np.array([0.0, 0.0, 0.0]), 1,  # position, radius
+                    [1, 1, 1], 16)  # light color, light intensity
+    )
+    """
+
+    scene.lights.append(
+        TriangleLight(np.array([-5.0, -1.0, 5.0]), np.array([-5.0, -1.0, 6.0]), np.array([-5.0, 1.0, 5.0]),
+                      [1, 1, 1], 100)
+    )
+
+    scene.lights.append(
+        TriangleLight(np.array([-5.0, -1.0, 6.0]), np.array([-5.0, 1.0, 6.0]), np.array([-5.0, 1.0, 5.0]),
+                      [1, 1, 1], 100)
+    )
+
+    return scene
 
 def formatSeconds(seconds):
     m, s = divmod(seconds, 60)
@@ -208,8 +246,9 @@ width = 512
 height = 512
 
 integrator = MISIntegrator()
-scene = createScene()
+#scene = createScene()
 #scene = createCoordinateScene()
+scene = createCornellBox()
 
 #im = render( width, height, scene, integrator)
 
@@ -238,8 +277,8 @@ ax.imshow(im, interpolation='nearest')
 # This is optional if you haven't called `plot` or anything else that might
 # change the limits/aspect.  We don't need this step in this case.
 ax.set(xlim=[0, width], ylim=[height, 0], aspect=1)
-
-directory = "generatedImages/"
+"""
+directory = "generatedImages\\"
 if not os.path.exists(directory):
     os.makedirs(directory)
 
@@ -249,7 +288,8 @@ filename = directory + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") 
 if enableSubPixelRendering:
     filename += "_SubpixelRendering"
 
-fig.savefig(filename + ".png", transparent=True)
+fig.savefig(fname=filename + ".png", transparent=True)
+"""
 plt.show()
 
 

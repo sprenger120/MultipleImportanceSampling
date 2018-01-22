@@ -11,7 +11,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # last triangle is always red so you can see which one you are editing when true
 # color you specified otherwise
-lastTriangleRed = False
+lastTriangleRed = True
 
 
 # one row is one triangle
@@ -19,9 +19,22 @@ lastTriangleRed = False
 # coordinates in XYZ form
 # vertex order is CCW (not important for this but later for raytracer)
 polyArray = [
-    [[0.0,2.0,-4.0], [3.0,2.0,-3.0], [3.0,3.0,-4.0], [1,1,1]],
+    [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [1,1,1]],
 
-    [[-3.0, 0, -4], [-3, 0, -4], [-3, 3, -6], [1,1,1]],
+    [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [5.0, -5.0, 12.0], [1,1,1]],
+
+    [[5.0, -5.0, 0.0], [5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1,0,0]],
+
+    [[5.0, -5.0, 12.0], [-5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1,0,0]],
+
+    [[-5.0, -1.0, 5.0], [-5.0, -1.0, 6.0], [-5.0, 1.0, 5.0], [1,1,1]],
+
+    [[-5.0, -1.0, 6.0], [-5.0, 1.0, 6.0], [-5.0, 1.0, 5.0], [1,1,1]],
+
+    [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],
+
+    [[5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],
+
 ]
 
 
@@ -44,11 +57,12 @@ for a in (ax.w_xaxis, ax.w_yaxis, ax.w_zaxis):
 # roughly adjust to raytracers camera position
 ax.view_init(elev=90, azim=0)
 
-
+"""
 #plot points
 ax.scatter(2,0,3, c=[[1,0,0]])
 ax.scatter(-2,0,3, c=[[1,0,0]])
 ax.scatter(0,0,0, c=[[1,0,0]])
+"""
 
 
 

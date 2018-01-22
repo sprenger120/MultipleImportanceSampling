@@ -36,7 +36,7 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 128
+    sampleCount = 16
     defaultHemisphereNormal = [0, 0, 1]
 
     def ell(self, scene, ray):
