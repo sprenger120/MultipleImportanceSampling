@@ -6,6 +6,7 @@ from Shapes.Triangle import  Triangle
 import copy
 import time
 from Shapes.Lights.LightBase import LightBase
+from Shapes.Lights.Lights import TriangleLight, SphereLight
 
 """
 Angles on the sphere
@@ -43,6 +44,9 @@ class MISIntegrator(Integrator):
     ColorGenTimeSec = 0
 
     sampleCount = 16
+
+    directedSamplesPercent = 0.25 # ...% of all samples are directed to light sources
+
     defaultHemisphereNormal = [0, 0, 1]
 
 
@@ -111,6 +115,11 @@ class MISIntegrator(Integrator):
         sampleRoatationMatrix = self.rotation_matrix_numpy(np.cross(MISIntegrator.defaultHemisphereNormal, intersectionNormal) ,
                                             np.dot(MISIntegrator.defaultHemisphereNormal, intersectionNormal) * np.pi)
 
+
+        # for better light collection add a couple of rays that almost directly hit the light source
+        directedSampleCount = np.floor(MISIntegrator.sampleCount * MISIntegrator.directedSamplesPercent)
+
+
         debugRayList = []
         #if ray.firstHitShape.tri:
         #    ray.print2()
@@ -128,27 +137,52 @@ class MISIntegrator(Integrator):
             #
             # generate direction of light sense ray shot away from the hemisphere
 
-            # generate theta and phi
-            theta = (np.random.random() * 2 - 1) * (np.pi / 2)
-            phi = (np.random.random() * 2 - 1) * np.pi
+            if directedSampleCount > 1:
+                directedSampleCount -= 1
+                #randomly select a light
+                selectedLightIndex = int(np.round(np.random.random() * (len(scene.lights) - 1)))
+                light = scene.lights[selectedLightIndex]
 
-            # map onto sphere
-            # we get a point on the unit sphere that is oriented along the positive x axis
-            lightSenseRaySecondPoint = self.twoAnglesTo3DPoint(theta, phi)
+                # generate a small offset so the directed rays won't always hit the same target
+                rndOffset = (np.random.random(3) * 2 - 1) * 0.1
 
-            # but because we need a sphere that is oriented along the intersection normal
-            # we rotate the point with the precalculated sample rotation matrix
-            lightSenseRaySecondPoint = np.dot(sampleRoatationMatrix, lightSenseRaySecondPoint)
+                # position on the light
+                pos = 0
 
-            # to get direction for ray we aquire the vector from the intersection point to our adjusted point on
-            # the sphere
-            lightSenseRay.d = -lightSenseRaySecondPoint
+                if isinstance(light, SphereLight):
+                    # sphere
+                    pos = light.pos + rndOffset
+                else :
+                    # triangle
+                    # offset is applied to barycentric coordinates
+                    uvw = np.array([0.33,0.33,0.33]) # middle of triangle
+                    uvw += rndOffset
+                    pos = light.v1*uvw[0] + light.v2*uvw[1] + light.v3*uvw[2]
+
+                lightSenseRay.d = pos - intersPoint
+            else:
+                # generate theta and phi
+                theta = (np.random.random() * 2 - 1) * (np.pi / 2)
+                phi = (np.random.random() * 2 - 1) * np.pi
+
+                # map onto sphere
+                # we get a point on the unit sphere that is oriented along the positive x axis
+                lightSenseRaySecondPoint = self.twoAnglesTo3DPoint(theta, phi)
+
+                # but because we need a sphere that is oriented along the intersection normal
+                # we rotate the point with the precalculated sample rotation matrix
+                lightSenseRaySecondPoint = np.dot(sampleRoatationMatrix, lightSenseRaySecondPoint)
+
+                # to get direction for ray we aquire the vector from the intersection point to our adjusted point on
+                # the sphere
+                lightSenseRay.d = -lightSenseRaySecondPoint
+
+
             lightSenseRay.d = lightSenseRay.d / np.linalg.norm(lightSenseRay.d)
 
-            #debugRayList.append(lightSenseRay)
-
-            #if ray.firstHitShape.tri:
-            #    lightSenseRay.print2(sampleNr+1)
+                #debugRayList.append(lightSenseRay)
+                #if ray.firstHitShape.tri:
+                #    lightSenseRay.print2(sampleNr+1)
 
             MISIntegrator.RayGenTimeSec = time.process_time() - t0
 
@@ -161,7 +195,6 @@ class MISIntegrator(Integrator):
                 # perpendicular light has highest intensity
                 #
                 aquiredLight *= np.abs(np.dot(intersectionNormal,lightSenseRay.d))
-
 
                 aquiredLightSum += aquiredLight
 
