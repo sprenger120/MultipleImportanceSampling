@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Dec 12 13:47:48 2017
-
-@author: lessig
+Requires:
+    - mathplotlib
+    - scipy
 """
+
+
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +23,8 @@ from datetime import datetime, timezone
 import os
 import time
 import cProfile
+from sys import platform
+import scipy.misc
 
 
 """
@@ -315,6 +320,8 @@ print("\n----------------------- Render Statistic -----------------------")
 # Save picture and show
 #
 
+
+"""
 # save in original resolution
 # https://stackoverflow.com/questions/34768717/matplotlib-unable-to-save-image-in-same-resolution-as-original-image
 dpi = 80
@@ -336,20 +343,27 @@ ax.imshow(im, interpolation='nearest')
 # This is optional if you haven't called `plot` or anything else that might
 # change the limits/aspect.  We don't need this step in this case.
 ax.set(xlim=[0, width], ylim=[height, 0], aspect=1)
+
+plt.show()
 """
-directory = "generatedImages\\"
+
+
+directory = "generatedImages"
 if not os.path.exists(directory):
     os.makedirs(directory)
 
-filename = directory + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") \
+filename = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") \
            + "_" + str(MISIntegrator.sampleCount) + "Samples_RenderTime_" + formatSeconds(timeUsedSec)
-
 if enableSubPixelRendering:
     filename += "_SubpixelRendering"
 
-fig.savefig(fname=filename + ".png", transparent=True)
-"""
-plt.show()
+filename += ".png"
+filename = os.path.join(directory,filename)
+
+scipy.misc.toimage(im, cmin=0.0, cmax=1).save(filename)
+
+
+
 
 
 
