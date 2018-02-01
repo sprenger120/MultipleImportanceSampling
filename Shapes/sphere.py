@@ -10,17 +10,16 @@ import numpy as np
 from Shapes.shape import Shape
 import time
 
-class Sphere( Shape) :
+
+class Sphere(Shape):
     intersectTimeSec = 0
     intersectCount = 1
 
-    def __init__(self, pos, r, color) :
-    
-        super().__init__(color)
-        
-        self.pos = pos
+    def __init__(self, pos, r, color):
+
+        self.pos = np.array(pos)
         self.r = r
-        self.tri = False    #no triangle
+        super().__init__(color)
 
     def intersect(self, ray):
         Sphere.intersectCount += 1
@@ -56,10 +55,21 @@ class Sphere( Shape) :
             sol = s2
             
         if sol < ray.t :
-            ray.t = sol;
+            ray.t = sol
             return True
             
         return False
+
+    def calcAABB(self):
+        self.BBv1 = self.pos + np.array([-self.r, -self.r, self.r])
+        self.BBv2 = self.pos + np.array([-self.r, -self.r, -self.r])
+        self.BBv3 = self.pos + np.array([-self.r, self.r, -self.r])
+        self.BBv4 = self.pos + np.array([-self.r, self.r, self.r])
+        self.BBv5 = self.pos + np.array([self.r, -self.r, self.r])
+        self.BBv6 = self.pos + np.array([self.r, -self.r, -self.r])
+        self.BBv7 = self.pos + np.array([self.r, self.r, -self.r])
+        self.BBv8 = self.pos + np.array([self.r, self.r, self.r])
+        return
         
         
     

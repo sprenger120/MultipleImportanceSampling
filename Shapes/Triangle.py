@@ -14,8 +14,6 @@ class Triangle(Shape):
     intersectCount = 1
 
     def __init__(self,v1,v2,v3, color):
-
-        super().__init__(color)
         self.v1 = np.array(v1)
         self.v2 = np.array(v2)
         self.v3 = np.array(v3)
@@ -26,8 +24,7 @@ class Triangle(Shape):
         self.mat[3][1] = 1
         self.mat[3][2] = 1
         self.mat[3][3] = 0
-
-        self.tri=True
+        super().__init__(color)
 
     def intersect(self, ray):
         Triangle.intersectCount += 1
@@ -112,3 +109,49 @@ class Triangle(Shape):
             return True
         else:
             return False
+
+    def calcAABB(self):
+        minZ = self.min(self.v1[2], self.v2[2], self.v3[2])
+        maxZ = self.max(self.v1[2], self.v2[2], self.v3[2])
+
+        minY = self.min(self.v1[1], self.v2[1], self.v3[1])
+        maxY = self.max(self.v1[1], self.v2[1], self.v3[1])
+
+        minX = self.min(self.v1[0], self.v2[0], self.v3[0])
+        maxX = self.max(self.v1[0], self.v2[0], self.v3[0])
+
+        self.BBv1 = np.array([minX,minY,maxZ])
+        self.BBv2 = np.array([minX,minY,minZ])
+        self.BBv3 = np.array([minX,maxY,minZ])
+        self.BBv4 = np.array([minX,maxY,maxZ])
+
+        self.BBv5 = np.array([maxX,minY,maxZ])
+        self.BBv6 = np.array([maxX,minY,minZ])
+        self.BBv7 = np.array([maxX,maxY,minZ])
+        self.BBv8 = np.array([maxX,maxY,maxZ])
+
+        return
+
+    def min(self, a, b, c):
+        if a <= b :
+            if a <= c:
+                return a
+            else:
+                return c
+        else:
+            if b <= c:
+                return b
+            else:
+                return c
+
+    def max(self, a, b, c):
+        if a >= b:
+            if a >= c:
+                return a
+            else:
+                return c
+        else:
+            if b >= c:
+                return b
+            else:
+                return c
