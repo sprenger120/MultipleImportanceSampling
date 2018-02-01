@@ -14,3 +14,8 @@ def isColor(color) :
            and isinstance(color[0], numbers.Number) \
            and isinstance(color[1], numbers.Number) \
            and isinstance(color[2], numbers.Number)
+
+def formatSeconds(seconds):
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    return "%dh %02dm %02ds" % (h, m, s)
