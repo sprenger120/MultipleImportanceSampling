@@ -61,13 +61,13 @@ class Sphere(Shape):
         return False
 
     def calcAABB(self):
-        self.BBv1 = self.pos + np.array([-self.r, -self.r, self.r])
+        #self.BBv1 = self.pos + np.array([-self.r, -self.r, self.r])
         self.BBv2 = self.pos + np.array([-self.r, -self.r, -self.r])
-        self.BBv3 = self.pos + np.array([-self.r, self.r, -self.r])
-        self.BBv4 = self.pos + np.array([-self.r, self.r, self.r])
-        self.BBv5 = self.pos + np.array([self.r, -self.r, self.r])
-        self.BBv6 = self.pos + np.array([self.r, -self.r, -self.r])
-        self.BBv7 = self.pos + np.array([self.r, self.r, -self.r])
+        #self.BBv3 = self.pos + np.array([-self.r, self.r, -self.r])
+        #self.BBv4 = self.pos + np.array([-self.r, self.r, self.r])
+        #self.BBv5 = self.pos + np.array([self.r, -self.r, self.r])
+        #self.BBv6 = self.pos + np.array([self.r, -self.r, -self.r])
+        #self.BBv7 = self.pos + np.array([self.r, self.r, -self.r])
         self.BBv8 = self.pos + np.array([self.r, self.r, self.r])
         return
         

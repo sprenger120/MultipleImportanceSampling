@@ -120,14 +120,14 @@ class Triangle(Shape):
         minX = self.min(self.v1[0], self.v2[0], self.v3[0])
         maxX = self.max(self.v1[0], self.v2[0], self.v3[0])
 
-        self.BBv1 = np.array([minX,minY,maxZ])
+        #self.BBv1 = np.array([minX,minY,maxZ])
         self.BBv2 = np.array([minX,minY,minZ])
-        self.BBv3 = np.array([minX,maxY,minZ])
-        self.BBv4 = np.array([minX,maxY,maxZ])
+        #self.BBv3 = np.array([minX,maxY,minZ])
+        #self.BBv4 = np.array([minX,maxY,maxZ])
 
-        self.BBv5 = np.array([maxX,minY,maxZ])
-        self.BBv6 = np.array([maxX,minY,minZ])
-        self.BBv7 = np.array([maxX,maxY,minZ])
+        #self.BBv5 = np.array([maxX,minY,maxZ])
+        #self.BBv6 = np.array([maxX,minY,minZ])
+        #self.BBv7 = np.array([maxX,maxY,minZ])
         self.BBv8 = np.array([maxX,maxY,maxZ])
 
         return
