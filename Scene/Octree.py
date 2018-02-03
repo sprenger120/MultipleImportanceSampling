@@ -16,7 +16,7 @@ class Octree():
 
     # How large the octree will span in the world (in each axis, from coordinate origin)
     # Everying outside will cause undefined behavior (most likely won't be picked up by intersect() )
-    OCTREE_COORDINATE_MAX = 100
+    OCTREE_COORDINATE_MAX = 1000
 
     # Maximum divisions
     MAX_DEPTH = 10
@@ -27,15 +27,19 @@ class Octree():
         :param shapeArray: [] of Shapes.shape derivates
         """
         self.rootBoundingVolume = BoundingVolume(single=True)
-        self.rootBoundingVolume.BBv2 = np.array([Octree.OCTREE_COORDINATE_MAX,
-                                                Octree.OCTREE_COORDINATE_MAX,
-                                                Octree.OCTREE_COORDINATE_MAX])
-        self.rootBoundingVolume.BBv8 = np.array([-Octree.OCTREE_COORDINATE_MAX,
+        self.rootBoundingVolume.BBv2 = np.array([-Octree.OCTREE_COORDINATE_MAX,
                                                 -Octree.OCTREE_COORDINATE_MAX,
                                                 -Octree.OCTREE_COORDINATE_MAX])
+        self.rootBoundingVolume.BBv8 = np.array([Octree.OCTREE_COORDINATE_MAX,
+                                                Octree.OCTREE_COORDINATE_MAX,
+                                                Octree.OCTREE_COORDINATE_MAX])
         self.rootBoundingVolume.finalizeAABB()
 
         self.rootNode = 0
+        self.biggestShapeListOnLeaf = 0
+        self.leafCount = 0
+        self.leafDepthSum = 0
+
         self.create(shapeArray)
         return
 
@@ -51,52 +55,113 @@ class Octree():
         # octree is only valid for object set given on creation
         # to avoid errors we copy the list
         # todo maybe do deep copy if strange errors arise
-        self.rootNode = OctreeNode(self.rootBoundingVolume, copy.copy(shapeArray))
+        self.rootNode = OctreeNode(self.rootBoundingVolume, copy.copy(shapeArray), 0)
         self.rootNode.initializeOctants()
 
+        val =  self._create(self.rootNode, 1)
 
-        val = True # self._create(self.rootNode, 1)
-
-        print("Octree created in %2.1f" % ((time.process_time() - t0)/1000), " ms")
+        print("Octree created in %2.1f" % ((time.process_time() - t0)*1000),
+              " ms   Biggest shapeList: ", self.biggestShapeListOnLeaf,
+              " Leaf Count: ", self.leafCount,
+              " Average Leaf Depth: %3.1f" % (self.leafDepthSum / self.leafCount))
         return val
 
     def _create(self, node, recursionLevel):
-        """
-        :param node: OctreeNode
-        :param recursionLevel:
-        :return:
-        """
         if recursionLevel > Octree.MAX_DEPTH:
+            self.logBiggestLeafShapeList(node)
             return
 
-        # go through all octants of 'node'
-        #for n in range(8):
+        # initialize all octants of this node
+        for n in range(8):
+            node.octants[n].initializeOctants()
 
-            # check whether shapes listed in 'node' intersect with the octant's bounding volume
-         #   for i in range(node.)
-          #  node.octants[n]
 
-            """
-                Each octant contains:
-            - a list of shapes that it intersects with
-            - it's bounding box
-            - an optional list of further octants (OctreeNode)
-        When the octant's list is more than one it will be further divided into octants until they
-        only intersect with one or max_depth is reached or  (the list of all child octants is either the same as the parents
-        or empty
-            """
+        # kill all newly intialized octants when every one of them has the same shapeList as this node
+        # this means that this node only contains very big objects that fill the nodes bounding volume completely
+        allOctantsSameAsNode = True
+        for n in range(8):
+            # if lengths are not the same, no point in checking further
+            # one octant is different than the node
+            if len(node.shapeList) == len(node.octants[n].shapeList):
+                thisOctantSameAsNode = True
+                for i in range(len(node.shapeList)):
+                    if not node.shapeList[i] is node.octants[n].shapeList[i]:
+                        thisOctantSameAsNode = False
+                        break
+                if not thisOctantSameAsNode:
+                    allOctantsSameAsNode = False
+                    break
+            else:
+                allOctantsSameAsNode = False
+                break
 
-            # if so initialize octants
+        if allOctantsSameAsNode:
+            #print("Pruned a complete Node, Reason: All octants are same as parent node")
+            node.uninitialize()
+            self.logBiggestLeafShapeList(node)
+            return
+
+        # prune all newly intialized octants that contribute nothing to
+        # faster lookup within the octree
+
+        # check sizes of octant's shapeLists
+        countOctantsWithShapes = 0
+        for n in range(8):
+            # prune empty octants
+            if len(node.octants[n].shapeList) == 0:
+                node.octants[n].uninitialize()
+                #print("Pruned Octant, Reason: Empty shapeList")
+            else:
+                countOctantsWithShapes += 1
+
+
+        # prune complete node if all nodes are empty
+        if countOctantsWithShapes == 0:
+            #print("Pruned a complete Node, Reason: All octants are empty")
+            node.uninitialize()
+            self.logBiggestLeafShapeList(node)
+            return
+
+        # prune this node if it has only one octant with shapes
+        #if countOctantsWithShapes == 1:
+        #    #print("Pruned a complete Node, Reason: All but one octant empty")
+        #    node.uninitialize()
+        #    self.logBiggestLeafShapeList(node)
+        #    return
+
+        # rest of octants are fine, divide that space further
+        for n in range(8):
+            if node.octants[n].isInitialized():
+                self._create(node.octants[n], recursionLevel + 1)
+        return
+
+    def logBiggestLeafShapeList(self, node):
+        # log biggest shape list
+        self.biggestShapeListOnLeaf = max(self.biggestShapeListOnLeaf, len(node.shapeList))
+
+        # find out node depth
+        # root node has parent 0
+        depth = -1
+        currNode = node
+        while(isinstance(currNode, OctreeNode)):
+            depth += 1
+            currNode = currNode.parentNode
+
+        self.leafCount += 1
+        self.leafDepthSum += depth
 
         return
 
-
     def intersect(self, ray):
+
+
+
+
         return False
 
 class OctreeNode():
     """
-    Represents one octree node / 'bounding volume' that gets divided into 8 smaller pieces
+    Represents one octree node. Divides given bounding volume into 8 smaller pieces (octants)
     Contains:
         - 8 Octants
         - List of shapes that intersect with 'bounding volume'
@@ -134,7 +199,7 @@ class OctreeNode():
         6... back-bottom-right
         7... back-top-right
     """
-    def __init__(self, boundingVolume, shapeList):
+    def __init__(self, boundingVolume, shapeList, parentNode):
         """
         Initializes node.
         Creates bounding volumes for octants, fills shapeList of octants
@@ -145,12 +210,13 @@ class OctreeNode():
         self.octants = []
         self.shapeList = shapeList
         self.boundingVolume = boundingVolume
+        self.parentNode = parentNode
         return
 
     def initializeOctants(self):
         # create octants
         for n in range(8):
-            self.octants.append(OctreeNode(BoundingVolume(single=True),[]))
+            self.octants.append(OctreeNode(BoundingVolume(single=True),[], self))
 
         halfXLen = self.boundingVolume.xLenBB / 2
         halfYLen = self.boundingVolume.yLenBB / 2
@@ -180,8 +246,23 @@ class OctreeNode():
         # go through shapeList and check if a shape intersects with our octants
         for shapeNr in range(len(self.shapeList)):
             for octNr in range(8):
-                if self.octants[octNr].intersectsWithBoundingVolume(self.shapeList[shapeNr]):
+                if self.octants[octNr].boundingVolume.intersectsWithBoundingVolume(self.shapeList[shapeNr]):
                     self.octants[octNr].shapeList.append(self.shapeList[shapeNr])
+        return
+    def isInitialized(self):
+        """
+        Returns true if octants of this node where previously initialized
+        Implies that parent node has divided space enough that further division will contribute nothing
+        :return:
+        """
+        return self.octants != 0 and len(self.octants) > 0
+
+    def uninitialize(self):
+        """
+        Removes initialized octants
+        :return:
+        """
+        self.octants = 0
         return
 
 

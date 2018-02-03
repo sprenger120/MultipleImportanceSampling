@@ -9,6 +9,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 from Shapes.Triangle import Triangle
 from Shapes.sphere import Sphere
 from Shapes.shape import Shape
+from Scene.Octree import BoundingVolume,Octree,OctreeNode
 
 
 def plotSphere(X,Y,Z, r):
@@ -83,13 +84,47 @@ ax.view_init(elev=90, azim=0)
 
 
 
+
+#aabb
+OCTREE_COORDINATE_MAX = 10
+rootBoundingVolume = BoundingVolume(single=True)
+rootBoundingVolume.BBv2 = np.array([-OCTREE_COORDINATE_MAX,
+                                         -OCTREE_COORDINATE_MAX,
+                                         -OCTREE_COORDINATE_MAX])
+rootBoundingVolume.BBv8 = np.array([OCTREE_COORDINATE_MAX,
+                                         OCTREE_COORDINATE_MAX,
+                                         OCTREE_COORDINATE_MAX])
+rootBoundingVolume.finalizeAABB()
+node = OctreeNode(rootBoundingVolume, [])
+node.initializeOctants()
+
+
+drawAABB(rootBoundingVolume)
+drawAABB(node.octants[0].boundingVolume)
+
+node.octants[0].initializeOctants()
+
+drawAABB(node.octants[0].octants[0].boundingVolume)
+
+node.octants[0].octants[0].initializeOctants()
+
+drawAABB(node.octants[0].octants[0].octants[0].boundingVolume)
+
+
+node.octants[0].octants[0].octants[0].initializeOctants()
+
+drawAABB(node.octants[0].octants[0].octants[0].octants[0].boundingVolume)
+
+
+
+
 #sphere
-s1 = Sphere(np.array([0, 0, 0]), 1, np.array([0,0,0]))
+#s1 = Sphere(np.array([0, 0, 0]), 1, np.array([0,0,0]))
 #s2 = Sphere(np.array([2, 2, 2]), 0.5, np.array([0,0,0]))
 
-plotSphereFromShape(s1)
+#plotSphereFromShape(s1)
 #plotSphereFromShape(s2)
-drawAABB(s1)
+#drawAABB(s1)
 #drawAABB(s2)
 
 
@@ -107,8 +142,8 @@ polyT[0][0][2] *= -1
 polyT[0][1][2] *= -1
 polyT[0][2][2] *= -1
 
-drawAABB(t)
-ax.add_collection3d(Poly3DCollection(polyT, color=[[0.5,0.5,0.5]]))
+#drawAABB(t)
+# ax.add_collection3d(Poly3DCollection(polyT, color=[[0.5,0.5,0.5]]))
 
 
 
