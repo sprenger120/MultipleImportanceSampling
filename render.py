@@ -16,15 +16,14 @@ import scipy.misc
 import util as util
 from Integrators.MISIntegrator import MISIntegrator
 from Scene.Scenes.CornellBox import CornellBox
-from Shapes.Lights.Lights import SphereLight, TriangleLight
 from Shapes.Triangle import Triangle
 from Shapes.sphere import Sphere
 from camera import Camera
 import webbrowser
 
 
-
-enableSubPixelRendering = False # x5 Render time
+# x5 Render time, anti aliasing
+enableSubPixelRendering = False
 
 
 # time spent rendering
