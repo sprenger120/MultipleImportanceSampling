@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from Shapes.Triangle import Triangle
 import numpy as np
+from Scene.Octree import Octree
 
 class Scene :
     """
@@ -13,7 +14,11 @@ class Scene :
     def __init__(self) :
         self.objects = []
         self.lights = []
+
         self.importGeometry()
+
+        self.octreeObjects = Octree(self.objects)
+        self.octreeLights = Octree(self.lights)
         return
 
     #todo implement octree
