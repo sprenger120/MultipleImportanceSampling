@@ -1,4 +1,6 @@
 import util as util
+from Scene.Octree import Octree
+from Shapes.sphere import Sphere
 
 ########## unit tests
 
@@ -25,6 +27,26 @@ def testUtil() :
 
 
 
+    return
+
+def testOctree():
+    ot = Octree()
+    s1 = Sphere([0,0,0],1,[0,0,0])
+
+    print("testing Octree.isPointInBoundingVolume")
+    assertTrue(ot.isPointInBoundingVolume(s1, [0,0,0]))
+    assertTrue(ot.isPointInBoundingVolume(s1, [1,0,0]))
+    assertTrue(ot.isPointInBoundingVolume(s1, [0,1,0]))
+    assertTrue(ot.isPointInBoundingVolume(s1, [0,0,1]))
+    assertTrue(ot.isPointInBoundingVolume(s1, [0,0.5,0]))
+    assertTrue(ot.isPointInBoundingVolume(s1, [0,1,1]))
+
+
+    assertFalse(ot.isPointInBoundingVolume(s1, [0,0,1.1]))
+    assertFalse(ot.isPointInBoundingVolume(s1, [0,1,1.1]))
+    assertFalse(ot.isPointInBoundingVolume(s1, [0,1,-1.1]))
+    assertFalse(ot.isPointInBoundingVolume(s1, [9999,0,-999]))
+    assertFalse(ot.isPointInBoundingVolume(s1, [9999,0,-999]))
     return
 
 
@@ -70,6 +92,7 @@ def assertEquals1DFloatArray(val1, val2) :
 
 def runTests() :
     testUtil()
+    testOctree()
 
     return
 
