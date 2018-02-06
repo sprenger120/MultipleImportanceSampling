@@ -26,11 +26,11 @@ from multiprocessing import Process, Manager
 # x5 Render time, anti aliasing
 enableSubPixelRendering = False
 
-timeUsedSec = 0
+
 
 
 def render( globalRes_x, globalRres_y, x0, y0, x1, y1, threadId, return_dict) :
-    global timeUsedSec
+    timeUsedSec = 0
 
     # sanity check window to render
     if x0 >= x1 or y0 >= y1:
@@ -162,8 +162,8 @@ def main():
     return_dict = manager.dict()
 
     # each core gets to render an equally big slice of the picture
-    sliceWidth = np.int(globalWidth / coresToUse * 2)
-    sliceHeight = np.int(globalHeight / coresToUse * 2)
+    sliceWidth = np.int(globalWidth / np.sqrt(coresToUse))
+    sliceHeight = np.int(globalHeight / np.sqrt(coresToUse))
     for x in range(0, globalWidth, sliceWidth):
         for y in range(0, globalHeight, sliceHeight):
             processes.append(Process(target=render,
@@ -188,9 +188,6 @@ def main():
                 for procY in range(y, y+sliceHeight):
                     finishedImage[procX, procY, :] = generatedImages[currentProcess][procX][procY]
             currentProcess += 1
-
-
-
 
     #
     # Generate Time Statistics
@@ -234,7 +231,7 @@ def main():
         os.makedirs(directory)
 
     filename = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") \
-               + "_" + str(MISIntegrator.sampleCount) + "Samples_RenderTime_" + util.formatSeconds(timeUsedSec)
+               + "_" + str(MISIntegrator.sampleCount) + "Samples"
     if enableSubPixelRendering:
         filename += "_SubpixelRendering"
 
