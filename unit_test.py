@@ -1,6 +1,8 @@
 import util as util
-from Scene.Octree import Octree
+from Scene.Octree import BoundingVolume
 from Shapes.sphere import Sphere
+import numpy as np
+from ray import Ray
 
 ########## unit tests
 
@@ -30,23 +32,50 @@ def testUtil() :
     return
 
 def testOctree():
-    ot = Octree()
+    bv = BoundingVolume(single=True)
+    bv.BBv2 = np.array([-1,-1,-1])
+    bv.BBv8 = np.array([1,1,1])
+    bv.finalizeAABB()
+
     s1 = Sphere([0,0,0],1,[0,0,0])
 
-    print("testing Octree.isPointInBoundingVolume")
-    assertTrue(ot.isPointInBoundingVolume(s1, [0,0,0]))
-    assertTrue(ot.isPointInBoundingVolume(s1, [1,0,0]))
-    assertTrue(ot.isPointInBoundingVolume(s1, [0,1,0]))
-    assertTrue(ot.isPointInBoundingVolume(s1, [0,0,1]))
-    assertTrue(ot.isPointInBoundingVolume(s1, [0,0.5,0]))
-    assertTrue(ot.isPointInBoundingVolume(s1, [0,1,1]))
+    print("testing BoundingVolume.isPointInBoundingVolume")
+    assertTrue(bv.isPointInBoundingVolume(s1, [0,0,0]))
+    assertTrue(bv.isPointInBoundingVolume(s1, [1,0,0]))
+    assertTrue(bv.isPointInBoundingVolume(s1, [0,1,0]))
+    assertTrue(bv.isPointInBoundingVolume(s1, [0,0,1]))
+    assertTrue(bv.isPointInBoundingVolume(s1, [0,0.5,0]))
+    assertTrue(bv.isPointInBoundingVolume(s1, [0,1,1]))
 
 
-    assertFalse(ot.isPointInBoundingVolume(s1, [0,0,1.1]))
-    assertFalse(ot.isPointInBoundingVolume(s1, [0,1,1.1]))
-    assertFalse(ot.isPointInBoundingVolume(s1, [0,1,-1.1]))
-    assertFalse(ot.isPointInBoundingVolume(s1, [9999,0,-999]))
-    assertFalse(ot.isPointInBoundingVolume(s1, [9999,0,-999]))
+    assertFalse(bv.isPointInBoundingVolume(s1, [0,0,1.1]))
+    assertFalse(bv.isPointInBoundingVolume(s1, [0,1,1.1]))
+    assertFalse(bv.isPointInBoundingVolume(s1, [0,1,-1.1]))
+    assertFalse(bv.isPointInBoundingVolume(s1, [9999,0,-999]))
+    assertFalse(bv.isPointInBoundingVolume(s1, [9999,0,-999]))
+
+    print("testing BoundingVolume.intersectsWithRay axis aligned")
+    rFromLeftMid = Ray(np.array([0.0,-10.0,0.0]), np.array([0.0,0.9, 0.0]))
+    rFromRightMid = Ray(np.array([0,10,0]), np.array([0,-0.8, 0]))
+
+    fromTopMid = Ray(np.array([-10,0,0]), np.array([1,0, 0]))
+    fromBottomMid = Ray(np.array([10,0,0]), np.array([-0.9,0, 0]))
+
+    fromFrontMid = Ray(np.array([0,0,-10]), np.array([0,0, 1]))
+    fromBackMid = Ray(np.array([0,0,10]), np.array([0,0, -0.7]))
+
+    assertTrue(bv.intersectsWithRay(rFromLeftMid))
+    assertTrue(bv.intersectsWithRay(rFromRightMid))
+    assertTrue(bv.intersectsWithRay(fromTopMid))
+    assertTrue(bv.intersectsWithRay(fromBottomMid))
+    assertTrue(bv.intersectsWithRay(fromFrontMid))
+    assertTrue(bv.intersectsWithRay(fromBackMid))
+
+    rFromLeftMid.o += np.array([10,0,0])
+    assertFalse(bv.intersectsWithRay(rFromLeftMid))
+    #todo add some more negative tests
+
+
     return
 
 
