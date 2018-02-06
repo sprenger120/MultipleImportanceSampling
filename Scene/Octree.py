@@ -45,10 +45,6 @@ class Octree():
         self.rootBoundingVolume.finalizeAABB()
 
         self.rootNode = 0
-        self.biggestShapeListOnLeaf = 0
-        self.leafCount = 0
-        self.leafDepthSum = 0
-
         self.create(shapeArray)
         return
 
@@ -68,7 +64,7 @@ class Octree():
 
         val =  self._create(self.rootNode, 1)
 
-        print("Creation Done took: %2.1f" % ((time.process_time() - t0) * 1000),
+        print("Creation Done took: %2.1fms" % ((time.process_time() - t0) * 1000),
               " Root unsortable shape size: ", len(self.rootNode.shapeList))
 
         return val
@@ -89,7 +85,7 @@ class Octree():
 
         # divide that space further
         for n in range(8):
-            if node.octants[n].isInitialized():
+            if node.octants[n].elementsWithin > 0:
                 self._create(node.octants[n], recursionLevel + 1)
         return
 
@@ -102,13 +98,13 @@ class Octree():
     def _intersect(self, ray, node):
         # intersect unsortable objects
         for n in range(len(node.shapeList)):
-            if node.shapeList[n].intersect(ray):
-                ray.firstHitShape = node.shapeList[n]
-                break
+            ray.intersecCount += 1
+            #if node.shapeList[n].intersect(ray):
+            #    ray.firstHitShape = node.shapeList[n]
 
         # if we are not initialized no need to search through octants
         if not node.isInitialized():
-                return
+            return
 
         # check which octant our ray is intersecting
         # if so dive deeper into it
@@ -353,7 +349,7 @@ class BoundingVolume():
     def isBVInSelf(self, bndVol):
         return self.isBVWithinBV(self, bndVol)
 
-    def intersectRayWithPlane(self, plane_o, plane_normal, ray, t_mul=1.0000001):
+    def intersectRayWithPlane(self, plane_o, plane_normal, ray, t_mul=1.000000):
         # assuming every direction vector is unit long
         a = np.dot(ray.d, plane_normal)
         # parallel to plane
@@ -372,7 +368,7 @@ class BoundingVolume():
         # avoid float wierdness
         # assuming bounding box is not smaller than 1-t_mul
 
-        """
+
         # face v1-v2-v3-v4
         if self.isPointInBoundingVolume(self,
                                         self.intersectRayWithPlane(self.BBv1, np.array([-1.0, 0.0, 0.0]), ray)):
@@ -382,7 +378,12 @@ class BoundingVolume():
         if self.isPointInBoundingVolume(self,
                                         self.intersectRayWithPlane(self.BBv2, np.array([0,0,-1]), ray)):
             return True
-        
+        # face v1-v2-v5-v6
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv1, np.array([0, -1, 0]), ray)):
+            return True
+
+        """
         # face v5-v6-v7-v8
         if self.isPointInBoundingVolume(self,
                                         self.intersectRayWithPlane(self.BBv5, np.array([1,0,0]), ray)):
@@ -393,10 +394,7 @@ class BoundingVolume():
                                         self.intersectRayWithPlane(self.BBv1, np.array([0,0,1]), ray)):
             return True
 
-        # face v1-v2-v5-v6
-        if self.isPointInBoundingVolume(self,
-                                        self.intersectRayWithPlane(self.BBv1, np.array([0,-1,0]), ray)):
-            return True
+       
 
         # face v4-v3-v7-v8
         if self.isPointInBoundingVolume(self,

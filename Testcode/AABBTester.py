@@ -69,7 +69,7 @@ def plotSphereFromShape(sph):
 
 def drawOctree(octreenode):
     drawAABB(octreenode.boundingVolume)
-    if octreenode.isInitialized():
+    if octreenode.elementsWithin > 0:
         for n in range(8):
             drawOctree(octreenode.octants[n])
 
@@ -94,10 +94,6 @@ ax.view_init(elev=90, azim=0)
 scene = CornellBox()
 
 drawOctree(scene.octreeObjects.rootNode)
-
-
-
-
 
 
 polyArray = [
@@ -149,7 +145,7 @@ for n in range(len(polyArray)) :
 # create color array
 colorArray = np.zeros((len(compatiblePolyArray), 3))
 for n in range(len(compatiblePolyArray)-1) :
-        colorArray[n, :] = polyArray[n][3]
+        colorArray[n, :] = np.array([0.75,0.75,0.75])
 
 
 # plot triangles

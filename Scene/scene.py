@@ -17,18 +17,18 @@ class Scene :
 
         self.importGeometry()
 
-        self.octreeObjects = Octree(self.objects, np.array([10,10,10]))
-        self.octreeLights = Octree(self.lights, np.array([10,10,10]))
+        #self.octreeObjects = Octree(self.objects, np.array([10,10,10]))
+        #self.octreeLights = Octree(self.lights, np.array([10,10,10]))
         return
 
     #todo implement octree
     def intersectLights(self, ray):
-        #return self.intersect(ray, self.lights)
-        return self.octreeLights.intersect(ray)
+        return self.intersect(ray, self.lights)
+        #return self.octreeLights.intersect(ray)
 
     def intersectObjects(self, ray):
-        #return self.intersect(ray, self.objects)
-        return self.octreeObjects.intersect(ray)
+        return self.intersect(ray, self.objects)
+        #return self.octreeObjects.intersect(ray)
 
     def intersect( self, ray, list) :
         res = False
