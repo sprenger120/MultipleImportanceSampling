@@ -135,8 +135,8 @@ def main():
     # each renderer thread has to know how big the resulting image will be
     # in addition to that it gets its slice of the picture to render
 
-    globalWidth = 512
-    globalHeight = 512
+    globalWidth = 256
+    globalHeight = 256
 
 
     # to support rendering on multiple computers we define a slice that this
@@ -236,7 +236,8 @@ def main():
         filename += "_SubpixelRendering"
 
     filename += ".png"
-    filename = os.path.join(directory,filename)
+    filename = os.path.join(os.getcwd(),directory,filename)
+    print("Saving to:", filename)
 
     scipy.misc.toimage(finishedImage, cmin=0.0, cmax=1).save(filename)
 
