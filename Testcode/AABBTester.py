@@ -9,6 +9,8 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 from Shapes.Triangle import Triangle
 from Shapes.sphere import Sphere
 from Shapes.shape import Shape
+from Scene.Octree import BoundingVolume,Octree,OctreeNode
+from Scene.Scenes.CornellBox import CornellBox
 
 
 def plotSphere(X,Y,Z, r):
@@ -65,6 +67,12 @@ def plotSphereFromShape(sph):
     plotSphere(sph.pos[0], sph.pos[1], -sph.pos[2], sph.r)
     return
 
+def drawOctree(octreenode):
+    drawAABB(octreenode.boundingVolume)
+    if octreenode.elementsWithin > 0:
+        for n in range(8):
+            drawOctree(octreenode.octants[n])
+
 
 fig = plt.figure(figsize=plt.figaspect(0.5)*1.5)
 ax = fig.add_subplot(111, projection='3d')
@@ -82,14 +90,77 @@ ax.view_init(elev=90, azim=0)
 
 
 
+#aabb
+scene = CornellBox()
+
+drawOctree(scene.octreeObjects.rootNode)
+
+
+polyArray = [
+    [[5.0, -5.0, 0.0], [5.0, 5.0, 0.0], [5.0, -5.0, 12.0], [0,0,1]],        #floor
+
+    [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [5.0, -5.0, 12.0], [0,0,1]],        #floor
+
+    [[5.0, -5.0, 0.0], [5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1,0,0]],      #left wall
+
+    [[5.0, -5.0, 12.0], [-5.0, -5.0, 12.0], [-5.0, -5.0, 0.0], [1,0,0]],    #left wall
+
+    [[5.0, 5.0, 0.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],       #right wall
+
+    [[5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, 5.0, 0.0], [0, 1, 0]],     #right wall
+
+    [[5.0, -5.0, 12.0], [5.0, 5.0, 12.0], [-5.0, 5.0, 12.0], [0, 0, 1]],    #back wall
+
+    [[5.0, -5.0, 12.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [0, 0, 1]],  #back wall
+
+    [[-5.0, -5.0, 0.0], [-5.0, 5.0, 0.0], [-5.0, -5.0, 12.0], [0,0,1]],     #ceiling
+
+    [[-5.0, 5.0, 0.0], [-5.0, 5.0, 12.0], [-5.0, -5.0, 12.0], [0,0,1]],     #ceiling
+
+    [[5.0, 1.0, 2.0], [5.0, 3.0, 2.0], [3.0, 3.0, 2.0], [1, 0, 0]],  # first block
+
+    [[5.0, 1.0, 2.0], [3.0, 3.0, 2.0], [3.0, 1.0, 2.0], [1, 0, 0]],  # first block
+
+    [[5.0, 3.0, 2.0], [5.0, 3.0, 4.0], [3.0, 3.0, 4.0], [1, 0, 0]],  # first block
+
+    [[5.0, 3.0, 2.0], [3.0, 3.0, 4.0], [3.0, 3.0, 2.0], [1, 0, 0]],  # first block
+
+    [[3.0, 1.0, 2.0], [3.0, 3.0, 2.0], [3.0, 3.0, 4.0], [1, 0, 0]],  # first block
+
+    [[3.0, 1.0, 2.0], [3.0, 3.0, 4.0], [3.0, 1.0, 4.0], [1, 0, 0]],  # first block
+
+]
+
+
+compatiblePolyArray = np.zeros((len(polyArray), 3, 3))
+for n in range(len(polyArray)) :
+    compatiblePolyArray[n, 0, :] = polyArray[n][0]
+    compatiblePolyArray[n, 1, :] = polyArray[n][1]
+    compatiblePolyArray[n, 2, :] = polyArray[n][2]
+    compatiblePolyArray[n][0][2] *= -1
+    compatiblePolyArray[n][1][2] *= -1
+    compatiblePolyArray[n][2][2] *= -1
+
+
+# create color array
+colorArray = np.zeros((len(compatiblePolyArray), 3))
+for n in range(len(compatiblePolyArray)-1) :
+        colorArray[n, :] = np.array([0.75,0.75,0.75])
+
+
+# plot triangles
+ax.add_collection3d(Poly3DCollection(compatiblePolyArray, color=colorArray))
+
+
+
 
 #sphere
-s1 = Sphere(np.array([0, 0, 0]), 1, np.array([0,0,0]))
+#s1 = Sphere(np.array([0, 0, 0]), 1, np.array([0,0,0]))
 #s2 = Sphere(np.array([2, 2, 2]), 0.5, np.array([0,0,0]))
 
-plotSphereFromShape(s1)
+#plotSphereFromShape(s1)
 #plotSphereFromShape(s2)
-drawAABB(s1)
+#drawAABB(s1)
 #drawAABB(s2)
 
 
@@ -107,8 +178,8 @@ polyT[0][0][2] *= -1
 polyT[0][1][2] *= -1
 polyT[0][2][2] *= -1
 
-drawAABB(t)
-ax.add_collection3d(Poly3DCollection(polyT, color=[[0.5,0.5,0.5]]))
+#drawAABB(t)
+# ax.add_collection3d(Poly3DCollection(polyT, color=[[0.5,0.5,0.5]]))
 
 
 

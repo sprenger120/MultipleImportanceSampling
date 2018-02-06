@@ -10,8 +10,8 @@ import time
 
 
 class Triangle(Shape):
-    intersectTimeSec = 0
-    intersectCount = 1
+    #intersectTimeSec = 0
+    #intersectCount = 1
 
     def __init__(self,v1,v2,v3, color):
         self.v1 = np.array(v1)
@@ -26,13 +26,13 @@ class Triangle(Shape):
         self.mat[3][3] = 0
         super().__init__(color)
 
-    def intersect(self, ray):
+    """def intersectTimed(self, ray):
         Triangle.intersectCount += 1
         t0 = time.process_time()
         val = self.intersectionMoellerTrumbore(ray)
         Triangle.intersectTimeSec += time.process_time() - t0
         return val
-
+    """
 
     def intersectionBarycentrian(self, ray):
         ray.d = ray.d / np.linalg.norm(ray.d)
@@ -84,7 +84,8 @@ class Triangle(Shape):
 
         return True
 
-    def intersectionMoellerTrumbore(self, ray):
+    #Moeller-Trumbore
+    def intersect(self, ray):
         epsilon = 0.0000001
         edge1 = self.v2 - self.v1
         edge2 = self.v3 - self.v1
@@ -120,14 +121,14 @@ class Triangle(Shape):
         minX = self.min(self.v1[0], self.v2[0], self.v3[0])
         maxX = self.max(self.v1[0], self.v2[0], self.v3[0])
 
-        self.BBv1 = np.array([minX,minY,maxZ])
+        #self.BBv1 = np.array([minX,minY,maxZ])
         self.BBv2 = np.array([minX,minY,minZ])
-        self.BBv3 = np.array([minX,maxY,minZ])
-        self.BBv4 = np.array([minX,maxY,maxZ])
+        #self.BBv3 = np.array([minX,maxY,minZ])
+        #self.BBv4 = np.array([minX,maxY,maxZ])
 
-        self.BBv5 = np.array([maxX,minY,maxZ])
-        self.BBv6 = np.array([maxX,minY,minZ])
-        self.BBv7 = np.array([maxX,maxY,minZ])
+        #self.BBv5 = np.array([maxX,minY,maxZ])
+        #self.BBv6 = np.array([maxX,minY,minZ])
+        #self.BBv7 = np.array([maxX,maxY,minZ])
         self.BBv8 = np.array([maxX,maxY,maxZ])
 
         return
