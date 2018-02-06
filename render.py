@@ -230,7 +230,7 @@ def main():
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    filename = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") \
+    filename = datetime.now(timezone.utc).strftime("%Y_%m_%d__%H_%M_%S") \
                + "_" + str(MISIntegrator.sampleCount) + "Samples"
     if enableSubPixelRendering:
         filename += "_SubpixelRendering"
