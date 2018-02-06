@@ -12,63 +12,55 @@ from Shapes.Triangle import Triangle
 from Shapes.sphere import Sphere
 from camera import Camera
 import webbrowser
-from multiprocessing import Process, Manager
+import multiprocessing
 from render import render
 
 def main():
-    # colors are RGB 0 to 1
-
-
     # distributed-multicore rendering
     # each renderer thread has to know how big the resulting image will be
     # in addition to that it gets its slice of the picture to render
-
     globalWidth = 256
     globalHeight = 256
 
     # to support rendering on multiple computers we define a slice that this
     # render instance may divide among its cpu cores
-
     clientSliceX0 = 0
     clientSliceY0 = 0
     clientSliceX1 = globalWidth
     clientSliceY1 = globalHeight
 
+    # please use numbers that are squarable without numbers behind comma (4, 9, 16, 25, 36,....)
     coresToUse = 4
 
+    # memory for finished image
     finishedImage = np.zeros((globalWidth, globalHeight, 3), dtype=np.float)
 
-    # start processes
-    # for best results please use even core count
 
-    processes = []
-    manager = Manager()
-    return_dict = manager.dict()
+    # each renderer allocates its own scene and integrator
+    processesInput = []
+    pool = multiprocessing.Pool(processes=coresToUse)
 
-    # each core gets to render an equally big slice of the picture
+    # prepare worker start parameters
     sliceWidth = np.int(globalWidth / np.sqrt(coresToUse))
     sliceHeight = np.int(globalHeight / np.sqrt(coresToUse))
     for x in range(0, globalWidth, sliceWidth):
         for y in range(0, globalHeight, sliceHeight):
-            processes.append(Process(target=render,
-                                     args=(
-                                     globalWidth, globalHeight, x, y, x + sliceWidth, y + sliceHeight, len(processes),
-                                     return_dict)))
+            processesInput.append((globalWidth, globalHeight, x, y, x + sliceWidth, y + sliceHeight, len(processesInput)))
 
-    for n in range(len(processes)):
-        processes[n].start()
 
-    for n in range(len(processes)):
-        processes[n].join()
+    # start processes
+    pool_outputs = pool.starmap(render, processesInput)
+    pool.close()
+    pool.join()
 
-    generatedImages = return_dict.values()
+
+    # combine images of workers
     currentProcess = 0
-
     for x in range(0, globalWidth, sliceWidth):
         for y in range(0, globalHeight, sliceHeight):
             for procX in range(x, x + sliceWidth):
                 for procY in range(y, y + sliceHeight):
-                    finishedImage[procX, procY, :] = generatedImages[currentProcess][procX][procY]
+                    finishedImage[procX, procY, :] = pool_outputs[currentProcess][procX][procY]
             currentProcess += 1
 
     #

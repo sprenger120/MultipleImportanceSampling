@@ -26,10 +26,10 @@ from multiprocessing import Process, Manager
 # x5 Render time, anti aliasing
 enableSubPixelRendering = False
 
+# colors are RGB 0 to 1
 
 
-
-def render( globalRes_x, globalRres_y, x0, y0, x1, y1, threadId, return_dict) :
+def render( globalRes_x, globalRres_y, x0, y0, x1, y1, threadId) :
     timeUsedSec = 0
 
     # sanity check window to render
@@ -120,5 +120,5 @@ def render( globalRes_x, globalRres_y, x0, y0, x1, y1, threadId, return_dict) :
                   "Time per Pixel:%6.1fms" % (timePerPixelSec * 1000),
                   end='', flush=True)
 
-    return_dict[threadId] = cam.image
-    return
+
+    return cam.image
