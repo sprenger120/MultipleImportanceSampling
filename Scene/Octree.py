@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import copy
+from ray import Ray
 
 """
 Bounding Box and Bounding Volume are the same in the context of this file
@@ -16,15 +17,20 @@ class Octree():
 
     # How large the octree will span in the world (in each axis, from coordinate origin)
     # Everying outside will cause undefined behavior (most likely won't be picked up by intersect() )
-    OCTREE_COORDINATE_MAX = 1000
+    OCTREE_COORDINATE_MAX = 100.0
 
     # Maximum divisions
     MAX_DEPTH = 10
 
-    def __init__(self, shapeArray):
+    def __init__(self, shapeArray, coordinateOffset = np.zeros(3)):
         """
         Creates octree from given array of shapes. See create() for more information
         :param shapeArray: [] of Shapes.shape derivates
+        :param coordinateOffset: np array with coordinates
+                                It is a good idea to minimize the amount of shapes that
+                                can't be sorted into octree leaves. When your scene is right in 0,0
+                                there is a high chance for many shapes to be unsortable. To fix that you can
+                                move the octree slightly to another side so that your scene is within an root octant
         """
         self.rootBoundingVolume = BoundingVolume(single=True)
         self.rootBoundingVolume.BBv2 = np.array([-Octree.OCTREE_COORDINATE_MAX,
@@ -33,6 +39,9 @@ class Octree():
         self.rootBoundingVolume.BBv8 = np.array([Octree.OCTREE_COORDINATE_MAX,
                                                 Octree.OCTREE_COORDINATE_MAX,
                                                 Octree.OCTREE_COORDINATE_MAX])
+
+        self.rootBoundingVolume.BBv2 += coordinateOffset
+        self.rootBoundingVolume.BBv8 += coordinateOffset
         self.rootBoundingVolume.finalizeAABB()
 
         self.rootNode = 0
@@ -56,115 +65,68 @@ class Octree():
         # to avoid errors we copy the list
         # todo maybe do deep copy if strange errors arise
         self.rootNode = OctreeNode(self.rootBoundingVolume, copy.copy(shapeArray), 0)
-        self.rootNode.initializeOctants()
 
         val =  self._create(self.rootNode, 1)
 
-        print("Octree created in %2.1f" % ((time.process_time() - t0)*1000),
-              " ms   Biggest shapeList: ", self.biggestShapeListOnLeaf,
-              " Leaf Count: ", self.leafCount,
-              " Average Leaf Depth: %3.1f" % (self.leafDepthSum / self.leafCount))
+        print("Creation Done took: %2.1f" % ((time.process_time() - t0) * 1000),
+              " Root unsortable shape size: ", len(self.rootNode.shapeList))
+
         return val
 
     def _create(self, node, recursionLevel):
         if recursionLevel > Octree.MAX_DEPTH:
-            self.logBiggestLeafShapeList(node)
             return
+
+        node.initializeOctants()
+
 
         # initialize all octants of this node
-        for n in range(8):
-            node.octants[n].initializeOctants()
+        #for n in range(8):
+        #    node.octants[n].initializeOctants()
+            # remove octant with no elements
+            #if node.octants[n].elementsWithin == 0:
+            #    node.octants[n].uninitialize()
 
-
-        # kill all newly intialized octants when every one of them has the same shapeList as this node
-        # this means that this node only contains very big objects that fill the nodes bounding volume completely
-        allOctantsSameAsNode = True
-        for n in range(8):
-            # if lengths are not the same, no point in checking further
-            # one octant is different than the node
-            if len(node.shapeList) == len(node.octants[n].shapeList):
-                thisOctantSameAsNode = True
-                for i in range(len(node.shapeList)):
-                    if not node.shapeList[i] is node.octants[n].shapeList[i]:
-                        thisOctantSameAsNode = False
-                        break
-                if not thisOctantSameAsNode:
-                    allOctantsSameAsNode = False
-                    break
-            else:
-                allOctantsSameAsNode = False
-                break
-
-        if allOctantsSameAsNode:
-            #print("Pruned a complete Node, Reason: All octants are same as parent node")
-            node.uninitialize()
-            self.logBiggestLeafShapeList(node)
-            return
-
-        # prune all newly intialized octants that contribute nothing to
-        # faster lookup within the octree
-
-        # check sizes of octant's shapeLists
-        countOctantsWithShapes = 0
-        for n in range(8):
-            # prune empty octants
-            if len(node.octants[n].shapeList) == 0:
-                node.octants[n].uninitialize()
-                #print("Pruned Octant, Reason: Empty shapeList")
-            else:
-                countOctantsWithShapes += 1
-
-
-        # prune complete node if all nodes are empty
-        if countOctantsWithShapes == 0:
-            #print("Pruned a complete Node, Reason: All octants are empty")
-            node.uninitialize()
-            self.logBiggestLeafShapeList(node)
-            return
-
-        # prune this node if it has only one octant with shapes
-        #if countOctantsWithShapes == 1:
-        #    #print("Pruned a complete Node, Reason: All but one octant empty")
-        #    node.uninitialize()
-        #    self.logBiggestLeafShapeList(node)
-        #    return
-
-        # rest of octants are fine, divide that space further
+        # divide that space further
         for n in range(8):
             if node.octants[n].isInitialized():
                 self._create(node.octants[n], recursionLevel + 1)
         return
 
-    def logBiggestLeafShapeList(self, node):
-        # log biggest shape list
-        self.biggestShapeListOnLeaf = max(self.biggestShapeListOnLeaf, len(node.shapeList))
-
-        # find out node depth
-        # root node has parent 0
-        depth = -1
-        currNode = node
-        while(isinstance(currNode, OctreeNode)):
-            depth += 1
-            currNode = currNode.parentNode
-
-        self.leafCount += 1
-        self.leafDepthSum += depth
-
-        return
 
     def intersect(self, ray):
+        self._intersect(ray, self.rootNode)
+        #print(ray.t)
+        return ray.t < Ray.maxRayLength
 
+    def _intersect(self, ray, node):
+        # intersect unsortable objects
+        for n in range(len(node.shapeList)):
+            if node.shapeList[n].intersect(ray):
+                ray.firstHitShape = node.shapeList[n]
+                break
 
+        # if we are not initialized no need to search through octants
+        if not node.isInitialized():
+                return
 
-
-        return False
+        # check which octant our ray is intersecting
+        # if so dive deeper into it
+        # each intersection is shortening the ray so we always have the nearest object
+        for n in range(8):
+            if node.octants[n].boundingVolume.intersectsWithRay(ray):
+                self._intersect(ray, node.octants[n])
 
 class OctreeNode():
     """
     Represents one octree node. Divides given bounding volume into 8 smaller pieces (octants)
     Contains:
         - 8 Octants
-        - List of shapes that intersect with 'bounding volume'
+        - List of shapes that have to be checked when something intersects with the boundingVolume of this node
+            - Either objects that can be fully enclosed within this boundingVolume
+                (Those objects may be moved further down into octants)
+            - Objects that can't be fully enclosed by bounding volume but still intersect with it
+                (will stay in this node)
     To initialize octants call initializeOctants()
 
     Octants are enumerated as follows (figure is aligned with coordinate system in camera class)
@@ -211,6 +173,12 @@ class OctreeNode():
         self.shapeList = shapeList
         self.boundingVolume = boundingVolume
         self.parentNode = parentNode
+
+        # todo replace this with dynamic lookup how many elements child nodes have
+        # count how many elements are sorted within octants and those who just clip this bounding box
+        # we store this because when space is further divided elements are taken from our shapeList
+        # and we no longer can detmine the object amount without going through every octant recursively
+        self.elementsWithin = len(shapeList)
         return
 
     def initializeOctants(self):
@@ -243,11 +211,22 @@ class OctreeNode():
             self.octants[n].boundingVolume.finalizeAABB()
 
 
-        # go through shapeList and check if a shape intersects with our octants
-        for shapeNr in range(len(self.shapeList)):
+        # go through shapeList and check if a shape is fully within an octant and move it to the octants shapeList
+        # because its impossible for it to be in another octant
+        # all shapes left over are either outside of global octree world size (only happens in root node)
+        # or intersect with more than one
+        # in that case we keep it in this node
+
+        #backwards because we are deleting
+        for shapeNr in range(len(self.shapeList)-1, -1, -1):
             for octNr in range(8):
-                if self.octants[octNr].boundingVolume.intersectsWithBoundingVolume(self.shapeList[shapeNr]):
-                    self.octants[octNr].shapeList.append(self.shapeList[shapeNr])
+                if self.octants[octNr].boundingVolume.isBVInSelf(self.shapeList[shapeNr]):
+                    self.octants[octNr].shapeList.append(self.shapeList.pop(shapeNr))
+                    break
+
+        #recalculate elementsWithin
+        for octNr in range(8):
+            self.octants[octNr].elementsWithin = len(self.octants[octNr].shapeList)
         return
     def isInitialized(self):
         """
@@ -352,31 +331,76 @@ class BoundingVolume():
         :param pnt: numpy array (coordiantes)
         :return:
         """
+        # a little help with intersectRayWithPlane usage
+        if isinstance(pnt, int):
+            return False
+
         return pnt[0] >= boundingVol.BBv2[0] and pnt[0] <= boundingVol.BBv6[0] and \
         pnt[1] >= boundingVol.BBv2[1] and pnt[1] <= boundingVol.BBv3[1] and \
         pnt[2] >= boundingVol.BBv2[2] and pnt[2] <= boundingVol.BBv1[2]
 
-    def _intersectBoundingVolumes(self, bndVol1, bndVol2):
+    def isBVWithinBV(self, bndVol1, bndVol2):
         """
-        Checks if all or some points of bndVol2 are in bndVol2
-        When bndVol2 contains bndVol1 no intersection will be found, use in reverse to find these
+        Checks if all points of bndVol2 are in bndVol1
+
         :param bndVol1: Scene.BoundingVolume
         :param bndVol2: Scene.BoundingVolume
-        :return: True if bndVol2 intersects bndVol1
+        :return: True when bndVol2 is fully enclosed by bndVol1
         """
-        return self.isPointInBoundingVolume(bndVol1, bndVol2.BBv1) or \
-        self.isPointInBoundingVolume(bndVol1, bndVol2.BBv2) or  \
-        self.isPointInBoundingVolume(bndVol1, bndVol2.BBv3) or \
-        self.isPointInBoundingVolume(bndVol1, bndVol2.BBv4) or \
-        self.isPointInBoundingVolume(bndVol1, bndVol2.BBv5) or \
-        self.isPointInBoundingVolume(bndVol1, bndVol2.BBv6) or \
-        self.isPointInBoundingVolume(bndVol1, bndVol2.BBv7) or \
+        return self.isPointInBoundingVolume(bndVol1, bndVol2.BBv2) and  \
         self.isPointInBoundingVolume(bndVol1, bndVol2.BBv8)
 
-    def intersectsWithBoundingVolume(self, bndVol):
+    def isBVInSelf(self, bndVol):
+        return self.isBVWithinBV(self, bndVol)
+
+    def intersectRayWithPlane(self, plane_o, plane_normal, ray, t_mul=1.0000001):
+        # assuming every direction vector is unit long
+        a = np.dot(ray.d, plane_normal)
+        # parallel to plane
+        if a < 0.00001 and a > -0.00001:
+            return 0
+        t = np.dot((plane_o-ray.o), plane_normal) / a
+        return ray.o + ray.d * (t * t_mul)
+
+    def intersectsWithRay(self, ray):
+        # if ray starts in bounding volume we know it intersects
+        if self.isPointInBoundingVolume(self, ray.o):
+            return True
+
+        # intersect ray with every faces plane and see if intersection point
+        # use a bit of t_mul to move intersection point behind the intersection plane to
+        # avoid float wierdness
+        # assuming bounding box is not smaller than 1-t_mul
+
         """
-        Checks if this bounding volume intersects with given one
-        :param bndVol: Scene.BoundingVolume
-        :return:
+        # face v1-v2-v3-v4
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv1, np.array([-1.0, 0.0, 0.0]), ray)):
+            return True
+        
+        # face v2-v3-v6-v7
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv2, np.array([0,0,-1]), ray)):
+            return True
+        
+        # face v5-v6-v7-v8
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv5, np.array([1,0,0]), ray)):
+            return True
+        
+        # face v1-v5-v8-v4
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv1, np.array([0,0,1]), ray)):
+            return True
+
+        # face v1-v2-v5-v6
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv1, np.array([0,-1,0]), ray)):
+            return True
+
+        # face v4-v3-v7-v8
+        if self.isPointInBoundingVolume(self,
+                                        self.intersectRayWithPlane(self.BBv4, np.array([0,1,0]), ray)):
+            return True
         """
-        return self._intersectBoundingVolumes(self, bndVol) or self._intersectBoundingVolumes(bndVol, self)
+        return False
