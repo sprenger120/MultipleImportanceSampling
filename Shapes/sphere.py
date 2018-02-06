@@ -12,8 +12,8 @@ import time
 
 
 class Sphere(Shape):
-    intersectTimeSec = 0
-    intersectCount = 1
+    #intersectTimeSec = 0
+    #intersectCount = 1
 
     def __init__(self, pos, r, color):
 
@@ -21,14 +21,16 @@ class Sphere(Shape):
         self.r = r
         super().__init__(color)
 
-    def intersect(self, ray):
+    """
+    def intersectTimed(self, ray):
         Sphere.intersectCount += 1
         t0 = time.process_time()
         val = self.auxIntersect(ray)
         Sphere.intersectTimeSec += time.process_time() - t0
         return val
+    """
 
-    def auxIntersect(self, ray):
+    def intersect(self, ray):
         
         # compute intersection point with sphere
         q = ray.o - self.pos

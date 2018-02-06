@@ -10,8 +10,8 @@ import time
 
 
 class Triangle(Shape):
-    intersectTimeSec = 0
-    intersectCount = 1
+    #intersectTimeSec = 0
+    #intersectCount = 1
 
     def __init__(self,v1,v2,v3, color):
         self.v1 = np.array(v1)
@@ -26,13 +26,13 @@ class Triangle(Shape):
         self.mat[3][3] = 0
         super().__init__(color)
 
-    def intersect(self, ray):
+    """def intersectTimed(self, ray):
         Triangle.intersectCount += 1
         t0 = time.process_time()
         val = self.intersectionMoellerTrumbore(ray)
         Triangle.intersectTimeSec += time.process_time() - t0
         return val
-
+    """
 
     def intersectionBarycentrian(self, ray):
         ray.d = ray.d / np.linalg.norm(ray.d)
@@ -84,7 +84,8 @@ class Triangle(Shape):
 
         return True
 
-    def intersectionMoellerTrumbore(self, ray):
+    #Moeller-Trumbore
+    def intersect(self, ray):
         epsilon = 0.0000001
         edge1 = self.v2 - self.v1
         edge2 = self.v3 - self.v1
