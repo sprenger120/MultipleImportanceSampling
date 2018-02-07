@@ -7,6 +7,7 @@ import copy
 import time
 from Shapes.Lights.LightBase import LightBase
 from Shapes.Lights.Lights import TriangleLight, SphereLight
+import sobol_seq
 
 """
 Angles on the sphere
@@ -43,11 +44,22 @@ class MISIntegrator(Integrator):
     RayGenTimeSec = 0
     ColorGenTimeSec = 0
 
-    sampleCount = 16
+    sampleCount = 32
 
     directedSamplesPercent = 0.25 # ...% of all samples are directed to light sources
 
     defaultHemisphereNormal = [0, 0, 1]
+
+    def __init__(self):
+        # precalculate samples from sobol sequence
+        self.precalcedSamples = sobol_seq.i4_sobol_generate(2,MISIntegrator.sampleCount)
+
+        # precalc for theta / phi
+        for i in range(MISIntegrator.sampleCount):
+            self.precalcedSamples[i][0] = np.arccos(self.precalcedSamples[i][0])
+            self.precalcedSamples[i][1] = (self.precalcedSamples[i][0] * 2 - 1) * np.pi
+
+        return
 
 
     def ell(self, scene, ray):
@@ -162,8 +174,11 @@ class MISIntegrator(Integrator):
                 lightSenseRay.d = pos - intersPoint
             else:
                 # generate theta and phi
-                theta = (np.random.random() * 2 - 1) * (np.pi / 2)
-                phi = (np.random.random() * 2 - 1) * np.pi
+                # to avoid points clustering at the top we use cos^-1 to convert angles from [0,1) to rad
+                #theta = np.arccos(np.random.random())
+                #phi = (np.random.random() * 2 - 1) * np.pi
+                theta = self.precalcedSamples[sampleNr][0]
+                phi = self.precalcedSamples[sampleNr][1]
 
                 # map onto sphere
                 # we get a point on the unit sphere that is oriented along the positive x axis
@@ -194,7 +209,9 @@ class MISIntegrator(Integrator):
                 # lambert light model (cos weighting)
                 # perpendicular light has highest intensity
                 #
-                aquiredLight *= np.abs(np.dot(intersectionNormal,lightSenseRay.d))
+
+                #
+                aquiredLight *= np.pi #* np.abs(np.dot(intersectionNormal,lightSenseRay.d))
 
                 aquiredLightSum += aquiredLight
 
@@ -238,7 +255,18 @@ class MISIntegrator(Integrator):
         MISIntegrator.ColorGenTimeSec = time.process_time() - t0
 
         # combine light color and object color + make it as bright as light that falls in
-        return ray.firstHitShape.color * combinedLightColor * aquiredLightSum
+        # because we calculate the light value over an area we have to divide by area of hemisphere (2*pi)
+
+        # because we can have tiny light sources and huge ones like the sun we need to
+        # compress the dynamic range so a pc screen can still show the difference between
+        # sunlight and a canle
+        # log attenuates very high values and increases very small ones to an extent
+        # small values are between 0-1 (+1 because log is only defined starting at 1)
+
+        # dynamic compression can be adjusted by dividing factor. /2 means that all log(light) over 2 are the
+        # brightest
+
+        return ray.firstHitShape.color * combinedLightColor * (np.log((aquiredLightSum / 2*np.pi)+1)/2)
 
 
     """
