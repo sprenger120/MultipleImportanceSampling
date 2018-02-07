@@ -49,11 +49,11 @@ class CornellBox(Scene):
 
         self.lights.append(
             TriangleLight(np.array([-5.0, -1.0, 3.0]), np.array([-5.0, -1.0, 4.0]), np.array([-5.0, 1.0, 3.0]),
-                          [1, 1, 1], 2)
+                          [1, 1, 1], 1)
         )
 
         self.lights.append(
             TriangleLight(np.array([-5.0, -1.0, 4.0]), np.array([-5.0, 1.0, 4.0]), np.array([-5.0, 1.0, 3.0]),
-                          [1, 1, 1], 2)
+                          [1, 1, 1], 1)
         )
         return
