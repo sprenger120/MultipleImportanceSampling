@@ -16,6 +16,67 @@ class BRDF:
         self.data = 0
         return
 
+
+    def normalizeVector(self, vec):
+        return vec / np.linalg.norm(vec)
+
+    def rotateVector(self, vector, axis, angle):
+        cosAngle = np.cos(angle)
+        out = vector*cosAngle
+        temp = np.dot(axis,vector) * (1-cosAngle)
+        out += axis * temp
+        out += np.cross(axis, vector) * np.sin(angle)
+        return out
+
+
+    def standardCoordsToHalfDiffCoords(self, theta_in, phi_in, theta_out, phi_out):
+        """
+        0: theta_half
+        1: phi_half
+        2: theta_diff
+        3: phi_diff
+        """
+        output = np.zeros(4)
+
+        # compute in vector
+        projInVec = np.sin(theta_in)
+        vecIn = np.array(
+            [projInVec * np.cos(phi_in),
+             projInVec * np.sin(phi_in),
+             np.cos(theta_in)
+             ])
+        vecIn = self.normalizeVector(vecIn)
+
+        # compute out vector
+        projOutVec = np.sin(theta_out)
+        vecOut = np.array(
+            [projInVec * np.cos(phi_out),
+             projInVec * np.sin(phi_out),
+             np.cos(theta_out)
+             ])
+        vecOut = self.normalizeVector(vecOut)
+
+        # compute halfway vector
+        half = (vecIn + vecOut) / 2.0
+        half = self.normalizeVector(half)
+
+        # compute  theta_half, phi_half
+        output[0] = np.arccos(half[2])
+        output[1] = np.arctan2(half[0], half[1])
+
+        
+
+
+
+
+    def lookupValue(self, theta_in, phi_in, theta_out, phi_out):
+        out = np.zeros(3)
+
+
+
+        return out
+
+
     def loadBRDF(self, fileName):
         file = open(fileName, "rb")
         # should be only 30mb big so maybe we are ok
