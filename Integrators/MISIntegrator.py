@@ -1,3 +1,4 @@
+from bisect import bisect_left
 from Integrators.integrator import Integrator
 from ray import Ray
 import numpy as np
@@ -66,7 +67,7 @@ class MISIntegrator(Integrator):
         hitSomething = scene.intersectObjects(ray)
         hitSomething |= scene.intersectLights(ray)
 
-        # we have it an object
+        # we have hit an object
         if  hitSomething :
 
             if isinstance(ray.firstHitShape, LightBase):
@@ -77,7 +78,6 @@ class MISIntegrator(Integrator):
                 ray.d = ray.d / np.linalg.norm(ray.d)
                 intersPoint = ray.o + ray.d*ray.t
 
-                intersectionNormal = 0
                 if isinstance(ray.firstHitShape, Triangle)  :
                     v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
                     v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
@@ -101,9 +101,158 @@ class MISIntegrator(Integrator):
         #todo
         return 0
 
-    def LightSoureAreaSampling(self, intersectionPoint, ray, scene, intersectionNormal):
-        #todo
-        return 0
+    # for Triangles only
+    def LightSourceAreaSampling(self, intersectionPoint, ray, scene, intersectionNormal):
+        sumArea = 0.0
+        areas = np.array([],float)
+        shapeSet = []
+        u2d=np.random.uniform(0.0,1.0,2)
+        u1d=np.random.uniform()
+
+        aquiredLightSum=0
+
+        for n in range (len(scene.lights)) :
+
+            #if coherent lightsource
+            if scene.lights[n+1].bigSourceNumber!=0 or scene.lights[n].bigSourceNumber!=0:
+                a = TriangleLight.TriangleArea(scene.lights[n])
+                np.append(areas,a)
+                sumArea+=a
+                shapeSet.append(scene.lights[n])
+                continue
+
+
+        #shapeSet sampling
+        sn = MISIntegrator.Distribution1Dcs(self,areas,len(areas),u1d)
+        pt = TriangleLight.TriangleSampling(scene.lights[sn],u2d[0],u2d[1])
+
+        r = Ray(intersectionPoint,pt-intersectionPoint)
+
+        lightSource=scene.lights[sn]
+
+        if scene.intersect(r,shapeSet):
+            org=r.o+r.d*r.t
+            lightSource=r.firstHitShape
+
+        org = pt
+        dir = (pt-intersectionPoint) / np.linalg.norm(pt-intersectionPoint)
+
+        self.LightSourceAreaSamplingPdf=self.LightSourceSetPdf(intersectionPoint,dir,shapeSet,areas,sumArea)
+
+        ############################################################## Calculate Light
+        t0 = time.process_time()
+        combinedLightColor = np.zeros(3)
+
+        # avoid / 0 when no light was aquired
+        if aquiredLightSum > 0:
+            #
+            # calculate pixel color
+            #
+
+            # first calculate the color of the light hitting the shape
+            # light that is more intense has more weight in the resulting color
+
+            for n in range(aquiredLightsCount):
+                combinedLightColor += aquiredLightsColor[n] * (aquiredLightsIntensity[n] / aquiredLightSum)
+
+            # should not be necessary
+            combinedLightColor = util.clipColor(combinedLightColor)
+
+            # normalize light
+            aquiredLightSum /= MISIntegrator.sampleCount
+
+            # if ray.firstHitShape.tri:
+            #    for n in range(len(debugRayList)):
+            #        debugRayList[n].print2(n)
+            # else:
+            """
+            if ray.firstHitShape.tri:
+                for n in range(len(debugRayList)):
+                    debugRayList[n].print2(n)
+            """
+        #    return [0,1,0]
+
+        MISIntegrator.ColorGenTimeSec = time.process_time() - t0
+
+        # combine light color and object color + make it as bright as light that falls in
+        # because we calculate the light value over an area we have to divide by area of hemisphere (2*pi)
+
+        # because we can have tiny light sources and huge ones like the sun we need to
+        # compress the dynamic range so a pc screen can still show the difference between
+        # sunlight and a canle
+        # log attenuates very high values and increases very small ones to an extent
+        # small values are between 0-1 (+1 because log is only defined starting at 1)
+
+        # dynamic compression can be adjusted by dividing factor. /2 means that all log(light) over 2 are the
+        # brightest
+
+        return ray.firstHitShape.color * combinedLightColor * (np.log((aquiredLightSum / 2 * np.pi) + 1) / 2)
+
+
+
+    def LightPower(self,light,area):
+        return light.lightIntensity*area*np.pi
+
+
+
+    def LightSourcePdf(self,p,wi,light):
+        r=Ray(p,wi)
+        if not light.intersect(r):
+            return 0.0
+        intersecP=r.o+r.d*r.t
+
+        #convert light sample weight to solid angle measure
+        pdf = (np.linalg.norm(p-intersecP)*np.linalg.norm(p-intersecP)) / (np.abs(np.dot(TriangleLight.TriangleNormal(r.firstHitShape),-wi))*TriangleLight.TriangleArea(r.firstHitShape))
+        return pdf
+
+
+
+    def LightSourceSetPdf(self,p,wi,shapeSet,areas,sumArea):
+        pdf=0.0
+        for i in range (len(shapeSet)):
+            pdf += areas[i] * self.LightSourcePdf(p,wi,shapeSet[i])
+        return pdf / sumArea
+
+
+
+    def UniformSampleHemisphere(self,u1,u2):
+        z=u1
+        r=np.sqrt(0 if (1.0-z*z)<0 else 1.0-z*z)
+        phi = 2*np.pi*u2
+        x = r*np.cos(phi)
+        y = r*np.sin(phi)
+
+        return np.array([x,y,z])
+
+
+    def Distribution1Dcs(self,f,n,u):
+        count = n
+
+        cdf = np.array([n+1],float)
+
+        cdf[0]=0
+        for i in range(count+1):
+            cdf[i]=cdf[i-1]+f[i-1] / n
+
+        funcInt = cdf[count]
+        for i in range(n+1):
+            cdf[i] /= funcInt
+
+        ptr=MISIntegrator.index(self,cdf,u)
+        offset = 0 if int(ptr-cdf-1)<0 else ptr-cdf-1
+
+        du = (u-cdf[offset])/(cdf[offset+1]-cdf[offset])
+
+        return (offset + du) / count
+
+    #binary search
+    def index(self, a, x):
+        'Locate the leftmost value exactly equal to x'
+        i = bisect_left(a, x)
+        if i != len(a) and a[i] == x:
+            return i
+        raise ValueError
+
 
     def RandomStupidSampling(self, intersPoint, ray, scene, intersectionNormal):
         ############################################################## Prepare

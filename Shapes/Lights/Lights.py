@@ -12,7 +12,9 @@ class SphereLight (LightBase, Sphere) :
 
 class TriangleLight(LightBase, Triangle) :
 
-    def __init__(self, v1, v2,v3, lightColor, lightIntensity) :
+    def __init__(self, v1, v2,v3, lightColor, lightIntensity, bigSourceNumber) :
         LightBase.__init__(self, lightColor, lightIntensity)
         Triangle.__init__(self, v1,v2,v3, lightColor)
+        #Coherent Lightsources
+        self.bigSourceNumber=bigSourceNumber
         return
