@@ -1,3 +1,4 @@
+from bisect import bisect_left
 from Integrators.integrator import Integrator
 from ray import Ray
 import numpy as np
@@ -44,18 +45,13 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 128
+    sampleCount = 32
     defaultHemisphereNormal = np.array([0.0, 0.0, 1.0])
 
+    LightSourceAreaSamplingPdf=0
+
+
     def __init__(self):
-        # precalculate samples from sobol sequence
-        self.precalcedSamples = sobol_seq.i4_sobol_generate(2,MISIntegrator.sampleCount)
-
-        # precalc for theta / phi
-        for i in range(MISIntegrator.sampleCount):
-            self.precalcedSamples[i][0] = np.arccos(self.precalcedSamples[i][0])
-            self.precalcedSamples[i][1] = (self.precalcedSamples[i][0] * 2 - 1) * np.pi
-
         self.brdf = BRDF(os.path.join(os.getcwd(),"Materials", "brdf_data", "alum-bronze.binary"))
         return
 
@@ -64,18 +60,17 @@ class MISIntegrator(Integrator):
         hitSomething = scene.intersectObjects(ray)
         hitSomething |= scene.intersectLights(ray)
 
-        # we have it an object
+        # we have hit an object
         if  hitSomething :
 
             if isinstance(ray.firstHitShape, LightBase):
                 # we have hit light
-                return ray.firstHitShape.color
+                return ray.firstHitShape.lightColor
             else:
                 # intersection point where object was hit
                 ray.d = ray.d / np.linalg.norm(ray.d)
                 intersPoint = ray.o + ray.d*ray.t
 
-                intersectionNormal = 0
                 if isinstance(ray.firstHitShape, Triangle)  :
                     v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
                     v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
@@ -88,17 +83,18 @@ class MISIntegrator(Integrator):
                 intersectionNormal = intersectionNormal / np.linalg.norm(intersectionNormal)
 
                 # sample
-                brdfSamplingResult = self.BRDFSampling(intersPoint, ray, scene, intersectionNormal)
-                lsaSamplingResult = self.LightSourceAreaSampling(intersPoint, ray, scene, intersectionNormal)
+                brdfColor,brdfIntens = self.BRDFSampling(intersPoint, ray, scene, intersectionNormal)
+                lsaColor, lsaIntens = self.LightSourceAreaSampling(intersPoint, ray, scene, intersectionNormal)
+
 
                 # combine light colors of both sampling strategies
                 lightColorsArray = np.array([
-                    brdfSamplingResult[0],
-                    lsaSamplingResult[0]
+                    brdfColor,
+                    lsaColor
                 ])
                 lightIntensitiesArray = np.array([
-                    brdfSamplingResult[1],
-                    lsaSamplingResult[1]
+                    brdfIntens,
+                    lsaIntens
                 ])
 
                 finalColor = self.weighColorByIntensity(lightColorsArray, lightIntensitiesArray)
@@ -112,8 +108,190 @@ class MISIntegrator(Integrator):
         # no intersection so we stare into the deep void
         return [0.25,0.25,0.25]
 
-    def LightSourceAreaSampling(self, intersPoint, ray, scene, intersectionNormal):
-        return (np.array([0,0,0]), 0)
+
+    # for Triangles only
+    def LightSourceAreaSampling(self, intersectionPoint, ray, scene, intersectionNormal):
+        sumArea = 0.0
+        areas = np.zeros(len(scene.lights),float)
+        u2d=np.random.uniform(0.0,1.0,2)
+        u1d=np.random.uniform()
+
+        aquiredLightSum=0
+        aquiredLight=0
+        aquiredLightsCount=0
+        aquiredLightsColor  = np.zeros((MISIntegrator.sampleCount, 3))
+        aquiredLightsIntensity  = np.zeros(MISIntegrator.sampleCount)
+
+        for sampleNr in range(MISIntegrator.sampleCount):
+            shapeSet = []
+            for n in range (len(scene.lights)) :
+
+                #if coherent lightsource
+                if scene.lights[n].bigSourceNumber>0:
+                    if scene.lights[n].bigSourceNumber==1:
+                        a = TriangleLight.TriangleArea(scene.lights[n-1])
+                        areas[n-1]=a
+                        sumArea += a
+                        shapeSet.append(scene.lights[n-1])
+                    a = TriangleLight.TriangleArea(scene.lights[n])
+                    areas[n]=a
+                    sumArea+=a
+                    shapeSet.append(scene.lights[n])
+                    continue
+
+                light=scene.lights[n]
+                sample=TriangleLight.TriangleSampling(light,u2d[0],u2d[1])
+                #if self.VisibilityTest(intersectionPoint,sample,scene):
+                    #aquiredLightsIntensity[n]=light.lightIntensity
+                    #aquiredLightsColor[n]=light.lightColor
+                    #aquiredLight=self.LightPower(light,TriangleLight.TriangleArea(light))
+                    #aquiredLightsCount=+1
+                #aquiredLightSum+=aquiredLight
+
+
+            #shapeSet sampling
+            sn = MISIntegrator.Distribution1Dcs(self,areas,len(areas),u1d)
+            #sampled point on sampled shape
+            pt = TriangleLight.TriangleSampling(scene.lights[sn],u2d[0],u2d[1])
+
+            r = Ray(intersectionPoint,(pt-intersectionPoint)/np.linalg.norm(pt-intersectionPoint))
+
+            lightSource=scene.lights[sn]
+
+            if scene.intersect(r,shapeSet):
+                org=r.o+r.d*r.t
+                lightSource=r.firstHitShape
+
+            org = pt
+            dir = (org-intersectionPoint) / np.linalg.norm(org-intersectionPoint)
+
+            self.LightSourceAreaSamplingPdf=self.LightSourceSetPdf(intersectionPoint,dir,shapeSet,areas,sumArea,scene)
+            if self.LightSourceAreaSamplingPdf == 0:
+                return [0,0,0],0
+
+            if not self.VisibilityTest(org,intersectionPoint,scene):
+               return [0,0,0],0
+
+            aquiredLightsIntensity[aquiredLightsCount] = lightSource.lightIntensity / self.LightSourceAreaSamplingPdf
+            aquiredLightsColor[aquiredLightsCount] = lightSource.lightColor
+            aquiredLight = aquiredLightsIntensity[aquiredLightsCount] * sumArea * np.pi
+            aquiredLightSum += aquiredLight
+            aquiredLightsCount += 1
+        ############################################################## Calculate Light
+
+        combinedLightColor = np.zeros(3)
+
+        # avoid / 0 when no light was aquired
+        if aquiredLightSum > 0:
+            #
+            # calculate pixel color
+            #
+
+            # first calculate the color of the light hitting the shape
+            # light that is more intense has more weight in the resulting color
+
+            for n in range(aquiredLightsCount):
+                combinedLightColor += aquiredLightsColor[n] * (aquiredLightsIntensity[n] / aquiredLightSum)
+
+            # should not be necessary
+            combinedLightColor = util.clipColor(combinedLightColor)
+
+            # normalize light
+            aquiredLightSum /= MISIntegrator.sampleCount
+
+
+        # combine light color and object color + make it as bright as light that falls in
+        # because we calculate the light value over an area we have to divide by area of hemisphere (2*pi)
+
+        # because we can have tiny light sources and huge ones like the sun we need to
+        # compress the dynamic range so a pc screen can still show the difference between
+        # sunlight and a canle
+        # log attenuates very high values and increases very small ones to an extent
+        # small values are between 0-1 (+1 because log is only defined starting at 1)
+
+        # dynamic compression can be adjusted by dividing factor. /2 means that all log(light) over 2 are the
+        # brightest
+        #value=ray.firstHitShape.color * combinedLightColor * (np.log((aquiredLightSum / 2 * np.pi) + 1) / 0.1)
+        #print(value)
+
+        return combinedLightColor, aquiredLightSum
+
+
+    def Distance(self,p1,p2):
+        return np.linalg.norm(p1-p2)
+
+    def VisibilityTest(self,p1,p2,scene):
+        dist=self.Distance(p1,p2)
+        r=Ray(p1,(p2-p1)/dist)
+        r.t=dist*1.001
+        scene.intersectObjects(r)
+        if r.t<dist:
+            return False
+        else:
+            return True
+
+
+    def LightPower(self,light,area):
+        return light.lightIntensity*area*np.pi
+
+
+    def LightSourcePdf(self,p,wi,light,scene):
+        r=Ray(p,wi)
+        if not scene.intersect(r,[light]):
+            return 0.0
+        intersecP=r.o+r.d*r.t
+
+        lNormal=TriangleLight.TriangleNormal(light)
+        #convert light sample weight to solid angle measure
+        pdf = (self.Distance(p,intersecP)*self.Distance(p,intersecP)) / (np.abs(np.dot(lNormal,-wi))*TriangleLight.TriangleArea(light))
+        return pdf
+
+
+
+    def LightSourceSetPdf(self,p,wi,shapeSet,areas,sumArea,scene):
+        pdf=0.0
+        for i in range (len(shapeSet)):
+            pdf += areas[i] * self.LightSourcePdf(p,wi,shapeSet[i],scene)
+        return pdf / sumArea
+
+
+
+    def UniformSampleHemisphere(self,u1,u2):
+        z=u1
+        r=np.sqrt(0 if (1.0-z*z)<0 else 1.0-z*z)
+        phi = 2*np.pi*u2
+        x = r*np.cos(phi)
+        y = r*np.sin(phi)
+
+        return np.array([x,y,z])
+
+
+    def Distribution1Dcs(self,f,n,u):
+        count = n
+
+        cdf = np.zeros(n+1,float)
+
+        for i in range(1,count+1):
+            cdf[i]=cdf[i-1]+f[i-1] / n
+
+        funcInt = cdf[count]
+        for i in range(1,n+1):
+            cdf[i] /= funcInt
+
+        ptr=MISIntegrator.find_ge(self,cdf,u)
+        dist=cdf[ptr]-u
+
+        return int(cdf[ptr]-dist)
+
+    #binary search
+    def find_ge(self, a, x):
+        'Find leftmost item greater than or equal to x'
+        i = bisect_left(a, x)
+        if i != len(a):
+            return i
+        raise ValueError
+
+
 
     def BRDFSampling(self, intersPoint, ray, scene, intersectionNormal):
         ############################################################## Prepare

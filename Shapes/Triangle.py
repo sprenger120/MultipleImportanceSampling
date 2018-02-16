@@ -34,6 +34,32 @@ class Triangle(Shape):
         return val
     """
 
+    def TriangleSampling(self, u1, u2):
+        # u1 = np.random.uniform()
+        # u2 = np.random.uniform()
+
+        u = 1 - np.sqrt(u1)
+        v = u2 * np.sqrt(u1)
+
+        p = u * self.v1 + v * self.v2 + (1 - u - v) * self.v3
+
+        return p
+
+    def TriangleNormal(self):
+        n = np.cross(self.v2 - self.v1, self.v3 - self.v1)
+        ns = n / np.linalg.norm(n)
+
+        return ns
+
+    def TriangleArea(self):
+        dist1 = np.linalg.norm(self.v1 - self.v2)
+        dist2 = np.linalg.norm(self.v2 - self.v3)
+        dist3 = np.linalg.norm(self.v3 - self.v1)
+
+        s = (dist1+dist2+dist3)/2
+
+        return np.sqrt(s*(s-dist1)*(s-dist2)*(s-dist3))
+
     def intersectionBarycentrian(self, ray):
         ray.d = ray.d / np.linalg.norm(ray.d)
         """
