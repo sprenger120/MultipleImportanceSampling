@@ -19,8 +19,8 @@ def main():
     # distributed-multicore rendering
     # each renderer thread has to know how big the resulting image will be
     # in addition to that it gets its slice of the picture to render
-    globalWidth = 256
-    globalHeight = 256
+    globalWidth = 128
+    globalHeight = 128
 
     # to support rendering on multiple computers we define a slice that this
     # render instance may divide among its cpu cores

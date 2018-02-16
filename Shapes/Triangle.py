@@ -52,7 +52,13 @@ class Triangle(Shape):
         return ns
 
     def TriangleArea(self):
-        return 0.5*np.abs(np.cross(self.v3[0]-self.v1[0],self.v3[0]-self.v2[0]))
+        dist1 = np.linalg.norm(self.v1 - self.v2)
+        dist2 = np.linalg.norm(self.v2 - self.v3)
+        dist3 = np.linalg.norm(self.v3 - self.v1)
+
+        s = (dist1+dist2+dist3)/2
+
+        return np.sqrt(s*(s-dist1)*(s-dist2)*(s-dist3))
 
     def intersectionBarycentrian(self, ray):
         ray.d = ray.d / np.linalg.norm(ray.d)
