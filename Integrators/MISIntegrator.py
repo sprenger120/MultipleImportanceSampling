@@ -8,6 +8,10 @@ import time
 from Shapes.Lights.LightBase import LightBase
 from Shapes.Lights.Lights import TriangleLight, SphereLight
 import sobol_seq
+from Materials.BRDF import BRDF
+import os
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 """
 Angles on the sphere
@@ -40,15 +44,8 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    TracePrepTimeSec = 0
-    RayGenTimeSec = 0
-    ColorGenTimeSec = 0
-
-    sampleCount = 32
-
-    directedSamplesPercent = 0.25 # ...% of all samples are directed to light sources
-
-    defaultHemisphereNormal = [0, 0, 1]
+    sampleCount = 128
+    defaultHemisphereNormal = np.array([0.0, 0.0, 1.0])
 
     def __init__(self):
         # precalculate samples from sobol sequence
@@ -59,6 +56,7 @@ class MISIntegrator(Integrator):
             self.precalcedSamples[i][0] = np.arccos(self.precalcedSamples[i][0])
             self.precalcedSamples[i][1] = (self.precalcedSamples[i][0] * 2 - 1) * np.pi
 
+        self.brdf = BRDF(os.path.join(os.getcwd(),"Materials", "brdf_data", "alum-bronze.binary"))
         return
 
 
@@ -81,7 +79,7 @@ class MISIntegrator(Integrator):
                 if isinstance(ray.firstHitShape, Triangle)  :
                     v1v2 = ray.firstHitShape.v2 - ray.firstHitShape.v1
                     v1v3 = ray.firstHitShape.v3 - ray.firstHitShape.v1
-                    intersectionNormal = np.cross(v1v3, v1v2)
+                    intersectionNormal = np.cross(v1v3 / np.linalg.norm(v1v3), v1v2 / np.linalg.norm(v1v2))
                 else :
                     # only for spheres
                     intersectionNormal = intersPoint
@@ -89,26 +87,36 @@ class MISIntegrator(Integrator):
                 # normalize normal vector
                 intersectionNormal = intersectionNormal / np.linalg.norm(intersectionNormal)
 
-                val = self.RandomStupidSampling(intersPoint, ray, scene, intersectionNormal)
-                return val
+                # sample
+                brdfSamplingResult = self.BRDFSampling(intersPoint, ray, scene, intersectionNormal)
+                lsaSamplingResult = self.LightSourceAreaSampling(intersPoint, ray, scene, intersectionNormal)
+
+                # combine light colors of both sampling strategies
+                lightColorsArray = np.array([
+                    brdfSamplingResult[0],
+                    lsaSamplingResult[0]
+                ])
+                lightIntensitiesArray = np.array([
+                    brdfSamplingResult[1],
+                    lsaSamplingResult[1]
+                ])
+
+                finalColor = self.weighColorByIntensity(lightColorsArray, lightIntensitiesArray)
+
+                #average intensities for compression later
+                finalIntensity = np.sum(lightIntensitiesArray) / len(lightIntensitiesArray)
+
+                # interact light with object
+                return ray.firstHitShape.color * finalColor * self.compressLightIntesity(finalIntensity)
 
         # no intersection so we stare into the deep void
         return [0.25,0.25,0.25]
 
+    def LightSourceAreaSampling(self, intersPoint, ray, scene, intersectionNormal):
+        return (np.array([0,0,0]), 0)
 
-
-    def BRDFSampling(self, intersectionPoint, ray, scene, intersectionNormal) :
-        #todo
-        return 0
-
-    def LightSoureAreaSampling(self, intersectionPoint, ray, scene, intersectionNormal):
-        #todo
-        return 0
-
-    def RandomStupidSampling(self, intersPoint, ray, scene, intersectionNormal):
+    def BRDFSampling(self, intersPoint, ray, scene, intersectionNormal):
         ############################################################## Prepare
-        t0 = time.process_time()
-
         # all the light hitting our intersection point
         # this value is later normalized with the sample count
         # before that its just the sum of incoming light
@@ -124,94 +132,155 @@ class MISIntegrator(Integrator):
 
         # Calculate matrix that rotates from the default hemisphere normal
         # to the intersection normal
-        sampleRoatationMatrix = self.rotation_matrix_numpy(np.cross(MISIntegrator.defaultHemisphereNormal, intersectionNormal) ,
+        intersectionNormal[0] += 0.001
+        intersectionNormal[1] += 0.001
+        intersectionNormal[2] += 0.001
+
+        sampleRoatationMatrix = self.rotation_matrix(np.cross(MISIntegrator.defaultHemisphereNormal, intersectionNormal),
                                             np.dot(MISIntegrator.defaultHemisphereNormal, intersectionNormal) * np.pi)
 
 
-        # for better light collection add a couple of rays that almost directly hit the light source
-        directedSampleCount = np.floor(MISIntegrator.sampleCount * MISIntegrator.directedSamplesPercent)
+        # phi and theta how the camera looks at our intersection point
+        camera_theta, camera_phi = self.VectorToAngles(ray.o - intersPoint)
 
 
-        debugRayList = []
-        #if ray.firstHitShape.tri:
-        #    ray.print2()
 
-        MISIntegrator.TracePrepTime = time.process_time() - t0
+        # precalculate theta cdfs for all light sources
+        angleSteps = 20
+        thetaCDFs = np.zeros((len(scene.lights),angleSteps))
+        phiCDFs = np.zeros((len(scene.lights),angleSteps))
+
+        for lightSourceNr in range(len(scene.lights)):
+            pointOnLight = scene.lights[lightSourceNr].v1 * 0.33 + \
+                           scene.lights[lightSourceNr].v2 * 0.33 + \
+                           scene.lights[lightSourceNr].v3 * 0.33
+            lightTheta, lightPhi = self.VectorToAngles(intersPoint - pointOnLight)
+
+            # calc theta cdf
+            for currAngleStep in range(angleSteps):
+                # -pi to pi
+                theta = -np.pi + (((2*np.pi) / angleSteps-1) * currAngleStep) + 0.01
+                #print(theta)
+
+                thetaCDFs[lightSourceNr][currAngleStep] = \
+                    self.brdf.lookupValue(theta, lightPhi, camera_theta, camera_phi)[0]
+
+            # calc phi cdf
+            for currAngleStep in range(angleSteps):
+                # 0 to 2*pi
+                phi = ((2*np.pi) / angleSteps-1) * currAngleStep
+
+                phiCDFs[lightSourceNr][currAngleStep] = \
+                    self.brdf.lookupValue(lightTheta, phi, camera_theta, camera_phi)[0]
+
+            thetaCDFs[lightSourceNr] = self.UnnormalizedFuncToCummulatedFunc(thetaCDFs[lightSourceNr])
+            phiCDFs[lightSourceNr] = self.UnnormalizedFuncToCummulatedFunc(phiCDFs[lightSourceNr])
+
+        """
+        fig = plt.figure(figsize=plt.figaspect(0.5) * 1.5)
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_aspect('equal', )
+        ax.set_xlim(-1.1, 1.1)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_zlim(-1.1, 1.1)
+        ax.grid(False)
+        for a in (ax.w_xaxis, ax.w_yaxis, ax.w_zaxis):
+            for t in a.get_ticklines() + a.get_ticklabels():
+                t.set_visible(False)
+            a.line.set_visible(False)
+            a.pane.set_visible(False)
+        ax.view_init(elev=90, azim=0)
+
+        omegasr3 = np.zeros((MISIntegrator.sampleCount, 3))
+
+        for n in range(MISIntegrator.sampleCount):
+            selectedLightIndex = int(np.round(np.random.random() * (len(scene.lights) - 1)))
+            probabilityTheta = self.sampleOnCDF(thetaCDFs[selectedLightIndex])
+            probabilityPhi = self.sampleOnCDF(phiCDFs[selectedLightIndex])
+
+            theta = np.arccos(probabilityTheta)
+            phi = (probabilityPhi * 2 - 1) * np.pi
+
+            #theta = np.arccos(np.random.random())
+            #phi = (np.random.random() * 2 - 1) * np.pi
+            print("theta: ", theta, " phi:", phi)
+
+            # map onto sphere
+            # we get a point on the unit sphere that is oriented along the positive x axis
+            lightSenseRaySecondPoint = self.twoAnglesTo3DPoint(theta, phi)
+            omegasr3[n] = lightSenseRaySecondPoint # np.dot(roateMatrix, omegasr3[n])
+
+        soa = np.zeros((2, 6))
+
+        #soa[0, :] = [0, 0, 0, defaultNormal[0], defaultNormal[1], defaultNormal[2] * -1]
+        #soa[1, :] = [0, 0, 0, alteredNormal[0], alteredNormal[1], alteredNormal[2] * -1]
+
+        X, Y, Z, U, V, W = zip(*soa)
+
+#        ax.quiver(X, Y, Z, U, V, W, color=[[0, 0, 1], [0, 1, 0]], pivot="tail", length=0.9)
+
+        ax.scatter(omegasr3[:, 0], omegasr3[:, 1], omegasr3[:, 2] * -1)
+
+        ax.set_xlabel('X........................')
+        ax.set_ylabel('Y........................')
+        ax.set_zlabel('Z........................')
+
+        plt.show()
+        return ([0,0,0],0)
+        """
 
         # integrate over sphere using monte carlo
         for sampleNr in range(MISIntegrator.sampleCount):
             ############################################################## Sample Rays
-            t0 = time.process_time()
             lightSenseRay = Ray(intersPoint)
 
             #
             # sample generation
             #
+            # select a random light to decide which two cdfs to use
+            selectedLightIndex = int(np.round(np.random.random() * (len(scene.lights) - 1)))
+
+
             # generate direction of light sense ray shot away from the hemisphere
 
-            if directedSampleCount > 1:
-                directedSampleCount -= 1
-                #randomly select a light
-                selectedLightIndex = int(np.round(np.random.random() * (len(scene.lights) - 1)))
-                light = scene.lights[selectedLightIndex]
 
-                # generate a small offset so the directed rays won't always hit the same target
-                rndOffset = (np.random.random(3) * 2 - 1) * 0.1
+            # generate theta and phi
+            # to avoid points clustering at the top we use cos^-1 to convert angles from [0,1) to rad
+            # for phi its sufficient to just map from [0,1] to -pi to pi
+            probabilityTheta = self.sampleOnCDF(thetaCDFs[selectedLightIndex])
+            #probabilityPhi = self.sampleOnCDF(phiCDFs[selectedLightIndex])
+            theta = np.arccos(probabilityTheta)
+            #phi = (probabilityPhi * 2 - 1) * np.pi
 
-                # position on the light
-                pos = 0
+            #theta = np.arccos(np.random.random())
+            phi = (np.random.random() * 2 - 1) * np.pi
 
-                if isinstance(light, SphereLight):
-                    # sphere
-                    pos = light.pos + rndOffset
-                else :
-                    # triangle
-                    # offset is applied to barycentric coordinates
-                    uvw = np.array([0.33,0.33,0.33]) # middle of triangle
-                    uvw += rndOffset
-                    pos = light.v1*uvw[0] + light.v2*uvw[1] + light.v3*uvw[2]
+            # map onto sphere
+            # we get a point on the unit sphere that is oriented along the positive x axis
+            lightSenseRaySecondPoint = self.twoAnglesTo3DPoint(theta, phi)
+            #print(lightSenseRaySecondPoint)
 
-                lightSenseRay.d = pos - intersPoint
-            else:
-                # generate theta and phi
-                # to avoid points clustering at the top we use cos^-1 to convert angles from [0,1) to rad
-                #theta = np.arccos(np.random.random())
-                #phi = (np.random.random() * 2 - 1) * np.pi
-                theta = self.precalcedSamples[sampleNr][0]
-                phi = self.precalcedSamples[sampleNr][1]
+            # but because we need a sphere that is oriented along the intersection normal
+            # we rotate the point with the precalculated sample rotation matrix
+            lightSenseRaySecondPoint = np.dot(sampleRoatationMatrix, lightSenseRaySecondPoint)
 
-                # map onto sphere
-                # we get a point on the unit sphere that is oriented along the positive x axis
-                lightSenseRaySecondPoint = self.twoAnglesTo3DPoint(theta, phi)
-
-                # but because we need a sphere that is oriented along the intersection normal
-                # we rotate the point with the precalculated sample rotation matrix
-                lightSenseRaySecondPoint = np.dot(sampleRoatationMatrix, lightSenseRaySecondPoint)
-
-                # to get direction for ray we aquire the vector from the intersection point to our adjusted point on
-                # the sphere
-                lightSenseRay.d = -lightSenseRaySecondPoint
-
-
-            lightSenseRay.d = lightSenseRay.d / np.linalg.norm(lightSenseRay.d)
-
-                #debugRayList.append(lightSenseRay)
-                #if ray.firstHitShape.tri:
-                #    lightSenseRay.print2(sampleNr+1)
-
-            MISIntegrator.RayGenTimeSec = time.process_time() - t0
+            # to get direction for ray we aquire the vector from the intersection point to our adjusted point on
+            # the sphere
+            #pointOnLight = scene.lights[selectedLightIndex].v1 * 0.33 + \
+            #               scene.lights[selectedLightIndex].v2 * 0.33 + \
+            #               scene.lights[selectedLightIndex].v3 * 0.33
+            #lightSenseRay.d =  pointOnLight - intersPoint#-lightSenseRaySecondPoint
+            #lightSenseRay.d /= np.linalg.norm(lightSenseRay.d)
+            lightSenseRay.d = lightSenseRaySecondPoint
+            #print(np.linalg.norm(lightSenseRay.d - lightSenseRaySecondPoint))
 
             # send ray on its way
             if scene.intersectLights(lightSenseRay) :
-                # weigh light intensity by various factors
                 aquiredLight = lightSenseRay.firstHitShape.lightIntensity
 
-                # lambert light model (cos weighting)
-                # perpendicular light has highest intensity
-                #
-
-                #
-                aquiredLight *= np.pi #* np.abs(np.dot(intersectionNormal,lightSenseRay.d))
+                # weigh light intensity by probability that this direction could be generated
+                aquiredLight /= np.maximum(probabilityTheta,0.001)
+                #print(probabilityTheta)
 
                 aquiredLightSum += aquiredLight
 
@@ -220,7 +289,6 @@ class MISIntegrator(Integrator):
                 aquiredLightsCount += 1
 
         ############################################################## Calculate Light
-        t0 = time.process_time()
         combinedLightColor = np.zeros(3)
 
         # avoid / 0 when no light was aquired
@@ -230,15 +298,10 @@ class MISIntegrator(Integrator):
             #
 
             # first calculate the color of the light hitting the shape
-            # light that is more intense has more weight in the resulting color
+            combinedLightColor = \
+                self.weighColorByIntensity(aquiredLightsIntensity, aquiredLightsColor, aquiredLightSum)
 
-            for n in range(aquiredLightsCount) :
-                combinedLightColor += aquiredLightsColor[n] * (aquiredLightsIntensity[n] / aquiredLightSum)
-
-            # should not be necessary
-            combinedLightColor = util.clipColor(combinedLightColor)
-
-            # normalize light
+            # normalize lightIntensity
             aquiredLightSum /= MISIntegrator.sampleCount
 
             #if ray.firstHitShape.tri:
@@ -252,8 +315,6 @@ class MISIntegrator(Integrator):
             """
         #    return [0,1,0]
 
-        MISIntegrator.ColorGenTimeSec = time.process_time() - t0
-
         # combine light color and object color + make it as bright as light that falls in
         # because we calculate the light value over an area we have to divide by area of hemisphere (2*pi)
 
@@ -266,7 +327,82 @@ class MISIntegrator(Integrator):
         # dynamic compression can be adjusted by dividing factor. /2 means that all log(light) over 2 are the
         # brightest
 
-        return ray.firstHitShape.color * combinedLightColor * (np.log((aquiredLightSum / 2*np.pi)+1)/2)
+        return combinedLightColor, aquiredLightSum / (2*np.pi)
+
+    def VectorToAngles(self, vec):
+        """
+        Calculates theta, phi from direction of given vector
+        :param normal:
+        :param incomingVec:
+        :return:
+        """
+        vec /= np.linalg.norm(vec)
+        theta = np.arccos(vec[2])
+        phi = np.arccos(np.minimum(np.maximum(vec[0] / np.maximum(np.sin(theta),0.0001), -1), 1))
+        return theta, phi
+
+
+
+    def integrateArray0To1(self, array):
+        """
+        Sees the array as Y of a function going from 0 to 1
+        :param array:
+        :return: Area of function
+        """
+        sliceSize = 1 / len(array)
+        value = 0
+        for n in range(len(array)):
+            value += array[n] * sliceSize
+        return value
+
+    def UnnormalizedFuncToCummulatedFunc(self, unnormalizedSamples):
+        """
+        Takes an array of samples from a function, sees it as going from 0 to 1 with  len(unnormalizedSamples) values
+        in between,  normalizes it so its area is 1 and calculates the cummulated function of it
+        :param unnormalizedSamples:
+        :return:
+        """
+        unnormalizedSamples = np.clip(unnormalizedSamples, a_min=0, a_max=999999)
+        area = self.integrateArray0To1(unnormalizedSamples)
+       #  unnormalizedSamples /= area
+        return np.cumsum(unnormalizedSamples / (area*len(unnormalizedSamples)))
+
+    def sampleOnCDF(self, cdf):
+        """
+        Uses uniform samples and samples on the given cdf
+        :param cdf:
+        :return:
+        """
+        sample = np.random.uniform(0,1)
+        # return (1.0 / len(cdf)) * np.searchsorted(cdf, [sample])
+
+        for i in range(len(cdf)):
+            if cdf[i] > sample:
+                if i == 0 or cdf[i] - sample < cdf[i-1] - sample:
+                    return (1.0/len(cdf)) * i
+                else:
+                    return (1.0 / len(cdf)) * (i-1)
+        # when no fitting spot was found
+        return 1
+
+
+
+
+    def compressLightIntesity(self, intensity):
+        if intensity < 0:
+            intensity = 0
+        return np.log(intensity+1)/2
+
+    # light that is more intense has more weight in the resulting color
+    def weighColorByIntensity(self, colorArray, intensityArray, intensitySum=None):
+        if len(colorArray) != len(intensityArray):
+            raise Exception
+        finalColor = np.zeros(3)
+        if intensitySum is None:
+            intensitySum = np.sum(intensityArray)
+        for i in range(len(colorArray)):
+            finalColor += colorArray[i] * (intensityArray[i] / intensitySum)
+        return finalColor
 
 
     """
@@ -284,14 +420,18 @@ class MISIntegrator(Integrator):
     """
     Renerates rotation matrix from given axis and angle
     """
-    def rotation_matrix_numpy(self, axis, theta):
+    def rotation_matrix(self, axis, theta):
         # https://stackoverflow.com/questions/6802577/python-rotation-of-3d-vector
-        mat = np.eye(3, 3)
-        axis = axis / np.sqrt(np.dot(axis, axis))
-        a = np.cos(theta / 2.)
-        b, c, d = -axis * np.sin(theta / 2.)
-
-        return np.array([[a * a + b * b - c * c - d * d, 2 * (b * c - a * d), 2 * (b * d + a * c)],
-                         [2 * (b * c + a * d), a * a + c * c - b * b - d * d, 2 * (c * d - a * b)],
-                         [2 * (b * d - a * c), 2 * (c * d + a * b), a * a + d * d - b * b - c * c]])
-
+        """
+        Return the rotation matrix associated with counterclockwise rotation about
+        the given axis by theta radians.
+        """
+        axis = np.asarray(axis)
+        axis = axis / np.maximum(np.sqrt(np.dot(axis, axis)), 0.00001)
+        a = np.cos(theta / 2.0)
+        b, c, d = -axis * np.sin(theta / 2.0)
+        aa, bb, cc, dd = a * a, b * b, c * c, d * d
+        bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+        return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                         [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                         [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
