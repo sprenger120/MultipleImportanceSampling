@@ -45,7 +45,7 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 64
+    sampleCount = 32
     defaultHemisphereNormal = np.array([0.0, 0.0, 1.0])
 
     LightSourceAreaSamplingPdf=0
@@ -62,6 +62,7 @@ class MISIntegrator(Integrator):
 
         # we have hit an object
         if  hitSomething :
+            ray.t -= 0.001
 
             if isinstance(ray.firstHitShape, LightBase):
                 # we have hit light
