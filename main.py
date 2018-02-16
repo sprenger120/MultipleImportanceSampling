@@ -14,6 +14,14 @@ from camera import Camera
 import webbrowser
 import multiprocessing
 from render import render
+from PIL import Image
+
+"""
+Requires:
+    - python3-scipy
+    - python3-pillow
+"""
+
 
 def main():
     # distributed-multicore rendering
@@ -109,7 +117,8 @@ def main():
     filename = os.path.join(os.getcwd(), directory, filename)
     print("Saving to:", filename)
 
-    scipy.misc.toimage(finishedImage, cmin=0.0, cmax=1).save(filename)
+    im = Image.fromarray(np.uint8(finishedImage * 255.0), mode="RGB")
+    im.save(filename)
 
     # open with default image application
     webbrowser.open(filename)
