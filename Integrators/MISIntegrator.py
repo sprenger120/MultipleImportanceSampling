@@ -45,7 +45,7 @@ Angles on the sphere
 
 class MISIntegrator(Integrator):
 
-    sampleCount = 32
+    sampleCount = 64
     defaultHemisphereNormal = np.array([0.0, 0.0, 1.0])
 
     LightSourceAreaSamplingPdf=0
@@ -84,6 +84,7 @@ class MISIntegrator(Integrator):
 
                 # sample
                 brdfColor,brdfIntens = self.BRDFSampling(intersPoint, ray, scene, intersectionNormal)
+                #brdfIntens = 0
                 lsaColor, lsaIntens = self.LightSourceAreaSampling(intersPoint, ray, scene, intersectionNormal)
 
 
@@ -457,7 +458,7 @@ class MISIntegrator(Integrator):
                 aquiredLight = lightSenseRay.firstHitShape.lightIntensity
 
                 # weigh light intensity by probability that this direction could be generated
-                aquiredLight /= np.maximum(probabilityTheta,0.001)
+                #aquiredLight /= np.maximum(probabilityTheta,0.001)
                 #print(probabilityTheta)
 
                 aquiredLightSum += aquiredLight
@@ -569,7 +570,7 @@ class MISIntegrator(Integrator):
     def compressLightIntesity(self, intensity):
         if intensity < 0:
             intensity = 0
-        return np.log(intensity+1)/2
+        return intensity# np.log(intensity+1)/2
 
     # light that is more intense has more weight in the resulting color
     def weighColorByIntensity(self, colorArray, intensityArray, intensitySum=None):

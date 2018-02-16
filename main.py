@@ -27,8 +27,8 @@ def main():
     # distributed-multicore rendering
     # each renderer thread has to know how big the resulting image will be
     # in addition to that it gets its slice of the picture to render
-    globalWidth = 128
-    globalHeight = 128
+    globalWidth = 512
+    globalHeight = 512
 
     # to support rendering on multiple computers we define a slice that this
     # render instance may divide among its cpu cores
@@ -38,7 +38,7 @@ def main():
     clientSliceY1 = globalHeight
 
     # please use numbers that are squarable without numbers behind comma (4, 9, 16, 25, 36,....)
-    coresToUse = 1
+    coresToUse = 4
 
     # memory for finished image
     finishedImage = np.zeros((globalWidth, globalHeight, 3), dtype=np.float)

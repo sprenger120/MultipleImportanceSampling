@@ -21,8 +21,8 @@ if __name__ == "__main__":
     rawValues = np.zeros((steps,2))
     n = 0
 
-    for i in np.linspace(0, np.pi*2, steps):
-        rawValues[n] = [i, np.maximum(brdf.lookupValue(1, i, 1, 0)[0],0)]
+    for i in np.linspace(-np.pi, np.pi, steps):
+        rawValues[n] = [i, np.maximum(brdf.lookupValue(1, 1,0,0)[0],0)]
         n += 1
 
 
